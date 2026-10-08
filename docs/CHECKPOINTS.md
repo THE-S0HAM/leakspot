@@ -3,7 +3,7 @@
 Statuses: `NOT STARTED` · `IN PROGRESS` · `DONE`. When I paste a checkpoint prompt, mark it `IN PROGRESS`.
 Only one checkpoint is ever `IN PROGRESS`. Fill "Evidence" with the exact commands run and their results.
 
-| CP | Name | Goal | Gate (summary; full text in MASTER_PROMPT.md) | Status | Date | Tag | Evidence |
+| CP | Name | Goal | Gate (summary) | Status | Date | Tag | Evidence |
 |---|---|---|---|---|---|---|---|
 | 0 | Foundation | Monorepo, guardrails, scripts, hooks on, Bedrock probe | verify green; secrets + stub scans pass; all 6 photos classify as expected; .env.deploy ignored | NOT STARTED | | cp-00 | |
 | 1 | Core engine | Pure simulator + engine + run reducers | score vectors exact; scenario outcome test; determinism; no engine→sim import; coverage ≥ 90% | NOT STARTED | | cp-01 | |
@@ -24,4 +24,4 @@ Only one checkpoint is ever `IN PROGRESS`. Fill "Evidence" with the exact comman
 - [ ] Pipeline log reaches "done" or "rejected"; ticket page updates on its own
 - [ ] "Low / no water" works without a photo
 - [ ] QR from Command Centre opens the right run with the sector pre-selected
-- [ ] Airplane mode shows the offline message, and sending works after reconnecting
+- [ ] Airplane mode shows the offline banner and the form keeps the photo and choices; after reconnecting, Send works

@@ -88,3 +88,54 @@ Context: judges arrive at random times; the landing page must always show a livi
 Decision: a permanent `SHOWCASE` run advanced every 5 minutes by EventBridge Scheduler with autopilot on, and
 reset when the scenario ends. Private runs are for hands-on play.
 Consequences: about 8,640 scheduled invocations per month, inside the free allowances.
+
+## ADR-011: Kickoff clarifications
+Date: 2026-10-09 · Status: accepted
+Context: a review of the plan before CP0 found gaps and small contradictions. Each is settled here.
+Guiding principle: every feature maps to a judging criterion and fits one sentence of the demo video;
+when two designs both work, choose the simpler one.
+Decision:
+1. Tooling hooks: path matchers accept both `/` and `\`; each hook is triggered once in CP0 and the result
+   logged in DEVLOG.
+2. No placeholder scripts: each root npm script arrives in the checkpoint that makes it work (CP0 build, test,
+   lint, typecheck, verify:fast, verify; CP2 dev; CP3 deploy, smoke; CP5 e2e; CP8 e2e:live). CP0 gives every
+   workspace a small real module with real tests (core units, contract ids, API config, web shell, empty
+   infra stack). Unused code is caught by TS `noUnusedLocals`/`noUnusedParameters` and ESLint, no extra tool.
+3. Secret scan flags AWS keys, private keys, the real access code, and literals assigned to `accessCode`,
+   `commandCode` or `LEAKSPOT_COMMAND_CODE` only; ordinary error codes such as `"CONFLICT"` are fine.
+4. Access code: 8 characters from `ABCDEFGHJKMNPQRSTVWXYZ23456789` (no I, L, O, U); trimmed and uppercased
+   before hashing, so it is case-insensitive; the code input shows uppercase.
+5. Report fusion order: a leak photo first attaches to the sector's open hidden incident without a photo
+   (moving the pin to the photo), and only then merges by distance. The scenario's C3 pin is (13, 85);
+   the example why-line says "hospital 90 m away".
+6. Calendar: day 1 is a Monday (days 7 and 14 are Sundays, day 15 is a Monday). Exactly 15 building meters
+   per sector; a data gap is 4 or more missing readings. Runs start and reset in a dry "before slot 0" state
+   labelled 05:45.
+7. Controls: Play ticks from the browser every 2 s while the tab is visible, Pause stops, Step ticks once;
+   Autopilot only automates crew dispatch and repair inside each tick; the Showcase is ticked by the
+   scheduler with autopilot on.
+8. Reports without a run link go to the public Showcase. The run META carries a `cycle` number, incremented
+   on reset and stored on each report; tickets from an earlier cycle show "Archived". Showcase reports
+   expire after 2 days.
+9. Offline: no queue. The form keeps the photo and choices, shows an offline banner, and Send works again
+   after reconnecting.
+10. Unaccounted water is drawn in the 3D world only after the engine detects it, never before.
+11. No FakeVision switch in production; the abuse test uses low-water reports plus one cached seed photo.
+12. Capacity: the Showcase is polled every 15 s and a private run every 2 s only while paused (a tick
+    response is the state while playing). `/api/*` uses one cache policy that honours origin
+    `Cache-Control` (default TTL 0, max 60, query strings in the key, no headers or cookies); the API sends
+    `public, max-age=10` only on public Showcase GETs and `no-store` elsewhere. META stays near 3 KB:
+    baselines are recomputed from the seed and only open incidents are stored there.
+13. The web app imports core only through `@leakspot/core/world` (layout, no leaks) and
+    `@leakspot/core/counterfactual`; a test fails if the built bundle contains a scripted leak id or position.
+14. Copy: "Crew starts at 07:00"; "Repair logged, below meter resolution".
+15. Inject leak takes only (x, z); the sector is derived server-side; a point outside every sector is a
+    validation error, "Pick a point inside a sector".
+16. Status badges: sector (Normal, Watch, Suspected, Confirmed, Data gap, Verifying, Verified), incident
+    (Open, Crew dispatched, Crew on site, Verifying, Verified, Reopened, Repair logged), report (Rejected,
+    Archived).
+17. Each sector inlet meter sits at the midpoint of the sector edge closest to the central avenue (x = 50);
+    pipe routes along streets are visual only.
+Consequences: the engine, API and UI checkpoints start from one unambiguous rule set. Showcase reads are
+mostly served from the CloudFront cache, so DynamoDB read capacity is no longer tied to the number of open
+landing pages.
