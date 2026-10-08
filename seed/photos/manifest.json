@@ -1,0 +1,11 @@
+{
+  "note": "Your own photos only: no faces, no number plates, no logos. JPEG, longest side <= 1024 px, <= 400 KB.",
+  "photos": [
+    { "file": "p1-burst-a.jpg", "expectedLabel": "burst", "shoot": "Water gushing strongly from a broken pipe or main onto a road or footpath." },
+    { "file": "p2-burst-b.jpg", "expectedLabel": "burst", "shoot": "The same kind of strong gush from a different angle or a different burst." },
+    { "file": "p3-street-flow.jpg", "expectedLabel": "burst", "shoot": "Clean water flowing fast across a street or flooding a road from an unseen pipe." },
+    { "file": "p4-pipe-joint.jpg", "expectedLabel": "major_leak", "shoot": "A pipe joint or valve leaking a steady stream, clearly more than a drip." },
+    { "file": "p5-drip.jpg", "expectedLabel": "minor_drip", "shoot": "A tap or pipe fitting with slow drops of water." },
+    { "file": "p6-car-wash.jpg", "expectedLabel": "not_a_leak", "shoot": "Someone washing a vehicle or watering plants with a hose (no faces, no plate)." }
+  ]
+}
