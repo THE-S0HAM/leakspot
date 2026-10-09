@@ -12,3 +12,4 @@ recordings/
 .env
 .env.*
 !.env.deploy.example
+*.tsbuildinfo
