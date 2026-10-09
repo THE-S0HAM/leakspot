@@ -1,0 +1,11 @@
+/* App shell styles: the LeakSpot display title in the pixel face, sized via custom properties. */
+
+.title {
+  --font-display: "Pixelify Sans", system-ui, sans-serif;
+  --size-display: 2.441rem; /* ~39px at a 16px root; the Display step, never below 20px */
+
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--size-display);
+  font-weight: 700;
+}
