@@ -1,0 +1,6 @@
+{
+  "app": "npx tsx bin/leakspot.ts",
+  "context": {
+    "@aws-cdk/core:newStyleStackSynthesis": true
+  }
+}
