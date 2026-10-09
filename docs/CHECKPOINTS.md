@@ -5,7 +5,7 @@ Only one checkpoint is ever `IN PROGRESS`. Fill "Evidence" with the exact comman
 
 | CP | Name | Goal | Gate (summary) | Status | Date | Tag | Evidence |
 |---|---|---|---|---|---|---|---|
-| 0 | Foundation | Monorepo, guardrails, scripts, hooks on, Bedrock probe | verify green; secrets + stub scans pass; all 6 photos classify as expected; .env.deploy ignored | NOT STARTED | | cp-00 | |
+| 0 | Foundation | Monorepo, guardrails, scripts, hooks on, Bedrock probe | verify green; secrets + stub scans pass; all 6 photos classify as expected; .env.deploy ignored | IN PROGRESS | | cp-00 | |
 | 1 | Core engine | Pure simulator + engine + run reducers | score vectors exact; scenario outcome test; determinism; no engine→sim import; coverage ≥ 90% | NOT STARTED | | cp-01 | |
 | 2 | API (local) | Contracts, ports/adapters, router, local server | every route tested; local end-to-end loop; coverage ≥ 85% | NOT STARTED | | cp-02 | |
 | 3 | AWS infra | CDK stack, AWS adapters, first deploy | guardrail test; deploy; smoke against live URL | NOT STARTED | | cp-03 | |
