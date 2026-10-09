@@ -1,0 +1,17 @@
+{
+  "name": "@leakspot/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "3.1148.0",
+    "@leakspot/contracts": "0.0.0"
+  },
+  "devDependencies": {
+    "aws-sdk-client-mock": "4.1.0",
+    "vitest": "5.0.3"
+  }
+}

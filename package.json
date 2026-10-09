@@ -1,0 +1,23 @@
+{
+  "name": "leakspot",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/web",
+    "services/api",
+    "packages/core",
+    "packages/contracts",
+    "infra"
+  ],
+  "scripts": {
+    "typecheck": "node scripts/typecheck.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@vitest/coverage-v8": "5.0.3",
+    "typescript": "7.0.2"
+  }
+}
