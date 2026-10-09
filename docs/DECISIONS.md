@@ -139,3 +139,15 @@ Decision:
 Consequences: the engine, API and UI checkpoints start from one unambiguous rule set. Showcase reads are
 mostly served from the CloudFront cache, so DynamoDB read capacity is no longer tied to the number of open
 landing pages.
+
+## ADR-012: Corrected the Crockford base32 character class in the id schemas
+Date: 2026-10-09 · Status: accepted
+Context: design.md and tasks.md (CP0) specified the Crockford char class as `[0-9A-HJ-NP-TV-Z]`. The range
+`J-N` includes `L`, so that class wrongly accepts `L`, which Crockford base32 excludes (no I, L, O, U)
+and which Requirement 8.2 requires `RunId`/`ReportId` to reject.
+Decision: use `[0-9A-HJKMNP-TV-Z]` in `packages/contracts/src/ids.ts` (defined once as a shared
+`CROCKFORD_CHAR` constant and reused for both `RunId` and `ReportId`). This matches exactly
+`0123456789ABCDEFGHJKMNPQRSTVWXYZ`. The CP0 spec docs (design.md, tasks.md) were corrected to the same
+class; the access-code alphabet in ADR-011 (4) was already correct and is unchanged.
+Consequences: id validation rejects I, L, O, U as intended. The CP1 ULID/run-id generator must emit only
+this alphabet so generated ids pass `ReportId`/`RunId`.
