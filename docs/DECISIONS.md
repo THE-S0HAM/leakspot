@@ -151,3 +151,26 @@ Decision: use `[0-9A-HJKMNP-TV-Z]` in `packages/contracts/src/ids.ts` (defined o
 class; the access-code alphabet in ADR-011 (4) was already correct and is unchanged.
 Consequences: id validation rejects I, L, O, U as intended. The CP1 ULID/run-id generator must emit only
 this alphabet so generated ids pass `ReportId`/`RunId`.
+
+## ADR-013: TypeScript 6.0.3 instead of TypeScript 7
+Date: 2026-10-09 · Status: accepted
+Context: CP0 first installed `typescript` 7.0.2 (the npm `latest`). `typescript-eslint` 8.71.1, its parser and
+`typescript-estree` declare the peer `typescript >=4.8.4 <6.1.0`; TS 7 offers no compiler API that
+typescript-eslint can use until TS 7.1, so linting could only work by forcing the peer with npm overrides.
+Decision: pin `typescript` to exactly 6.0.3, the latest 6.0.x. No npm overrides, `--force` or
+`--legacy-peer-deps`. Never TypeScript 7 in this project: typescript-eslint supports <6.1.0 only.
+Consequences: lint and typecheck share one compiler version with no peer warnings. Do not upgrade
+TypeScript mid-project. This supersedes the "latest stable major at CP0" rule for TypeScript only.
+
+## ADR-014: CP0 test tooling and supporting packages
+Date: 2026-10-09 · Status: accepted
+Context: tech.md names the main libraries per workspace; CP0 also needs a few packages it does not name.
+Decision: install these at exact versions, each for one reason:
+- `@vitest/coverage-v8` 5.0.3 (root, dev): coverage provider for the gates in `npm run verify`.
+- `jsdom` 30.1.2 (apps/web, dev): DOM environment for the web component tests.
+- `@types/node` 22.20.5 (root, dev): Node typings for scripts, the API and infra (runtime floor Node 22).
+- `@types/react` 19.3.0 and `@types/react-dom` 19.3.0 (apps/web, dev): typings for the strict React shell.
+- `zod` 4.6.5 as a direct dependency of `services/api`: `config.ts` validates the environment itself, so it
+  declares zod instead of relying on the copy installed for `packages/contracts`.
+`esbuild` and the `aws-cdk` CLI are pinned but not installed until CP3.
+Consequences: every installed package is used in CP0; nothing is pulled in transitively by accident.
