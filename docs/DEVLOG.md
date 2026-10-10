@@ -38,3 +38,6 @@ task by running each tool's JS entry with `process.execPath`); the checkpoint-lo
 - Surprises / problems: the one-line robocopy form with folder names after the destination fails
   ("Invalid Parameter"); backups use one robocopy call per folder.
 - Next: CP0 once the six seed photos are added and the budget alert email is real.
+
+## 2026-10-10 — Deadline mode
+- Entered deadline mode (<10 h to submission): dropped vitest coverage block, marked CP0 PARTIAL (tag cp-00-partial), added `.kiro/steering/00-deadline-mode.md` and ADR-015; now work from block prompts, not specs.

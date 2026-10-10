@@ -174,3 +174,20 @@ Decision: install these at exact versions, each for one reason:
   declares zod instead of relying on the copy installed for `packages/contracts`.
 `esbuild` and the `aws-cdk` CLI are pinned but not installed until CP3.
 Consequences: every installed package is used in CP0; nothing is pulled in transitively by accident.
+
+## ADR-015: Deadline mode
+Date: 2026-10-10 · Status: accepted
+Context: under 10 hours to submission; the checkpoint/spec workflow and several free-tier hardening
+features cannot all land in time. The core loop and demo must take priority.
+Decision: adopt deadline mode, defined in `.kiro/steering/00-deadline-mode.md`, which overrides every
+other steering file where they conflict. It drops the spec workflow, coverage thresholds, and the
+scan/stub scripts; cuts three.js (isometric SVG city instead), the showcase run and scheduler, replay,
+sound, sessions, rate limits, caps, the vision cache, the worker Lambda, OAC-to-Lambda, Playwright; and
+simplifies the architecture to one Lambda behind a Function URL (AuthType NONE) served through CloudFront
+at `/api/*`, one DynamoDB table (25/25), synchronous Bedrock, and an `x-leakspot-code` header checked by
+SHA-256. It keeps the validated engine numbers and score vectors, the access code, EN/हिंदी/मराठी, the
+real-step pipeline log, the with-vs-without panel, and the design-system tokens and fonts.
+Consequences: supersedes ADR-001 (OAC + session + x-amz-content-sha256), ADR-003 (worker Lambda), and
+ADR-010 (scheduler-driven showcase) for the remainder of this build; relaxes the DynamoDB capacity of
+ADR-006 to 25/25. CP0 is marked PARTIAL and the checkpoint gates no longer apply. See the steering file
+for the authoritative list.
