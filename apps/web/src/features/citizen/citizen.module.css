@@ -129,3 +129,44 @@
   font-family: var(--font-display);
   font-size: var(--t-2);
 }
+
+/* Result card: shown after the pipeline reaches "done". Block style, hard side face (no blur). */
+.resultCard {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: var(--panel);
+  border: 2px solid var(--rule);
+  box-shadow: 0 4px 0 var(--ink);
+}
+.resultHead {
+  font-family: var(--font-display);
+  font-size: var(--t-2);
+}
+.resultBody {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.resultThumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 2px solid var(--rule);
+  flex: 0 0 auto;
+  image-rendering: auto;
+}
+.resultLines {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.resultLine {
+  font-size: var(--t-0);
+  color: var(--ink);
+}
+.resultTicket {
+  font-family: var(--font-mono);
+  font-size: var(--t-0);
+  color: var(--ink-dim);
+}

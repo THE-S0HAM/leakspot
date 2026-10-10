@@ -9,3 +9,36 @@
   font-size: var(--size-display);
   font-weight: 700;
 }
+
+/* Shared fallback surface for the error boundary and the 404 page (Monsoon Night block style). */
+.fallback {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg, #0e1828);
+  color: var(--ink, #e7eef7);
+}
+.fallbackCard {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+  padding: 20px;
+  background: var(--panel, #172539);
+  border: 2px solid var(--rule, #2e4361);
+  box-shadow: 0 4px 0 var(--rule, #2e4361);
+}
+.fallbackCard h1 {
+  margin: 0;
+  font-family: var(--font-display, "Pixelify Sans", system-ui, sans-serif);
+  font-size: 1.563rem;
+}
+.fallbackCard p {
+  margin: 0;
+  color: var(--ink-dim, #9db0c9);
+}
+.fallbackActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

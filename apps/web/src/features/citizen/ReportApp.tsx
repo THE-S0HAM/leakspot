@@ -12,8 +12,7 @@ import { MiniMap, type MiniMapPin } from "../../world/MiniMap";
 import { PixelButton } from "../../ui/PixelButton";
 import { SimLabel } from "../../ui/StatusBadge";
 import { PipelineLog, SegmentBar, type LogLine } from "../../ui/PipelineLog";
-import { labelWord } from "../../ui/words";
-import { LangContext, LANG_NAMES, useT, type Lang } from "../../i18n/t";
+import { LangContext, LANG_NAMES, useT, type Lang, type StringKey } from "../../i18n/t";
 import { browserEncoder, compressPhoto, type CompressResult } from "./compress";
 import { loadLang, saveLang, saveTicket } from "./storage";
 import { postReport, UploadError } from "./upload";
@@ -23,6 +22,17 @@ const MODEL_NAME = "Nova 2 Lite";
 
 type Step = "home" | "leak" | "lowwater" | "sending" | "done";
 type SelfChoice = "flowing" | "dripping" | "weak_flow" | "no_water";
+
+// Engine vision label → i18n key, so AI labels read in the citizen's language.
+const LABEL_KEY: Record<string, StringKey> = {
+  burst: "aiBurst",
+  major_leak: "aiMajorLeak",
+  minor_drip: "aiMinorDrip",
+  sewage_mixing: "aiSewage",
+  not_a_leak: "aiNotALeak",
+  unclear: "aiUnclear",
+  self_reported: "aiSelfReported",
+};
 
 export function ReportApp(): JSX.Element {
   const [lang, setLang] = useState<Lang>(() => loadLang() ?? "en");
@@ -156,30 +166,38 @@ function ReportFlow({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void })
     }
   }
 
+  // Translate an engine vision label to the citizen's language.
+  const aiLabel = useCallback((label: string): string => t(LABEL_KEY[label] ?? "aiUnclear"), [t]);
+
   function toLogLines(result: ClassifyResponse): LogLine[] {
     const lines: LogLine[] = [
       {
-        text: t("photoSent"),
+        text: t("stageReceived"),
         state: "done",
         detail: photo ? `${Math.round(photo.bytes / 1024)} KB` : undefined,
       },
     ];
     if (result.rejected) {
-      lines.push({ text: "checked", state: "done", detail: t("reportRejected") });
+      lines.push({ text: t("stageClassifying"), state: "done", detail: t("aiNotALeak") });
       return lines;
     }
     const aiDetail =
       result.label === "self_reported"
-        ? "self-reported"
-        : `${labelWord(result.label)}, ${Math.round(result.confidence * 100)}%, ${MODEL_NAME}`;
-    lines.push({ text: "stored", state: "done" });
-    lines.push({ text: "located", state: "done", detail: pin?.sectorId });
-    lines.push({ text: "AI check", state: "done", detail: aiDetail });
+        ? t("aiSelfReported")
+        : `${aiLabel(result.label)}, ${Math.round(result.confidence * 100)}%, ${MODEL_NAME}`;
+    lines.push({ text: t("stageStored"), state: "done" });
+    lines.push({ text: t("stageLocated"), state: "done", detail: pin?.sectorId });
+    lines.push({ text: t("stageClassifying"), state: "done", detail: aiDetail });
     if (result.incident) {
-      lines.push({ text: "matched", state: "done", detail: result.incident.id });
+      // Never show the raw incident id to a citizen; the sector is enough.
+      lines.push({
+        text: t("stageMatching"),
+        state: "done",
+        detail: result.incident.sectorId,
+      });
     }
-    lines.push({ text: "scored", state: "done" });
-    lines.push({ text: "done", state: "done" });
+    lines.push({ text: t("stageScored"), state: "done" });
+    lines.push({ text: t("stageDone"), state: "done" });
     return lines;
   }
 
@@ -321,16 +339,16 @@ function ReportFlow({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void })
           </div>
         )}
 
-        {step === "done" && newRid && (
+        {step === "done" && newRid && classified && (
           <div style={{ display: "grid", gap: 12 }}>
             <PipelineLog lines={serverStages ?? []} />
-            {classified?.rejected ? (
-              <p className={styles.error}>{t("reportRejected")}</p>
-            ) : (
-              <PixelButton onClick={() => navigate(`/t/${runId}/${newRid}`)}>
-                {t("seeMyTicket")}
-              </PixelButton>
-            )}
+            <ResultCard
+              result={classified}
+              photoBase64={photo?.base64 ?? null}
+              ticketCode={`${runId}-${newRid.slice(-4)}`}
+              aiLabel={aiLabel}
+              onSeeTicket={() => navigate(`/t/${runId}/${newRid}`)}
+            />
             <PixelButton variant="secondary" onClick={resetFlow}>
               {t("iSeeALeak")}
             </PixelButton>
@@ -434,6 +452,71 @@ function RunCodeEntry({ onJoin }: { onJoin: (runId: string) => void }): JSX.Elem
       <PixelButton disabled={clean.length !== 5} onClick={() => onJoin(clean)}>
         {t("send")}
       </PixelButton>
+    </div>
+  );
+}
+
+function ResultCard({
+  result,
+  photoBase64,
+  ticketCode,
+  aiLabel,
+  onSeeTicket,
+}: {
+  result: ClassifyResponse;
+  photoBase64: string | null;
+  ticketCode: string;
+  aiLabel: (label: string) => string;
+  onSeeTicket: () => void;
+}): JSX.Element {
+  const t = useT();
+  const previewUrl = useMemo(
+    () => (photoBase64 ? `data:image/jpeg;base64,${photoBase64}` : null),
+    [photoBase64],
+  );
+
+  if (result.rejected) {
+    return (
+      <div className={styles.resultCard}>
+        <div className={styles.resultHead}>{t("resultNotALeak")}</div>
+        <p className={styles.resultLine}>{t("reportRejected")}</p>
+      </div>
+    );
+  }
+
+  const sector = result.incident?.sectorId;
+  const matchLine =
+    result.incident && result.mergedCount > 0
+      ? `${t("resultAddedToLeak")} ${sector} (${result.mergedCount + 1} ${t("resultReports")})`
+      : sector
+        ? `${t("resultNewReport")} ${sector}`
+        : null;
+  const aiLine =
+    result.label === "self_reported"
+      ? t("aiSelfReported")
+      : `${t("resultAiPrefix")}: ${aiLabel(result.label)} · ${Math.round(result.confidence * 100)}% ${t("aiSure")}`;
+
+  return (
+    <div className={styles.resultCard}>
+      <div className={styles.resultHead}>{t("resultReceived")}</div>
+      <div className={styles.resultBody}>
+        {previewUrl && (
+          <img className={styles.resultThumb} src={previewUrl} alt={t("resultReceived")} />
+        )}
+        <div className={styles.resultLines}>
+          <span className={styles.resultLine}>{aiLine}</span>
+          {matchLine && <span className={styles.resultLine}>{matchLine}</span>}
+          {result.incident && (
+            <span className={styles.resultLine}>
+              {t("resultPriority")}: {result.incident.priority} / 100
+            </span>
+          )}
+          <span className={styles.resultTicket}>
+            {t("resultTicket")}: {ticketCode}
+          </span>
+        </div>
+      </div>
+      <PixelButton onClick={onSeeTicket}>{t("seeMyTicket")}</PixelButton>
     </div>
   );
 }

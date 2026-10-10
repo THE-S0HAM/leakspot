@@ -61,4 +61,34 @@ export const en = {
   verified: "Verified by meters",
   withWithout: "With vs without LeakSpot",
   simulation: "simulation",
+
+  // pipeline log stages (citizen Send screen)
+  stageReceived: "photo received",
+  stageStored: "photo stored",
+  stageLocated: "located",
+  stageClassifying: "checking the photo",
+  stageMatching: "matching nearby reports",
+  stageScored: "scored",
+  stageDone: "done",
+
+  // AI labels (Bedrock / self-reported)
+  aiBurst: "burst",
+  aiMajorLeak: "major leak",
+  aiMinorDrip: "small drip",
+  aiSewage: "sewage in supply",
+  aiNotALeak: "not a leak",
+  aiUnclear: "unclear photo",
+  aiSelfReported: "self-reported",
+  aiSure: "sure", // "90% sure"
+  repairLogged: "repair logged, below meter resolution",
+
+  // result card
+  resultReceived: "Report received",
+  resultNotALeak: "This doesn't look like a leak",
+  resultAiPrefix: "AI",
+  resultAddedToLeak: "Added to the leak", // "… in {sector} ({n} reports)"
+  resultNewReport: "New report", // "… in {sector}"
+  resultReports: "reports",
+  resultPriority: "Priority",
+  resultTicket: "Ticket",
 } as const;

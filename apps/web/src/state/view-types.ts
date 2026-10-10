@@ -94,8 +94,10 @@ export type ClassifyResponse = {
   confidence: number;
   fallbackReason?: string;
   rejected: boolean;
+  /** Other reports already attached to this incident (0 = new report in the sector). */
+  mergedCount: number;
   stages: Stage[];
-  incident?: { id: string; status: string; verdict: string };
+  incident?: { id: string; status: string; verdict: string; sectorId: SectorId; priority: number };
 };
 
 export type TicketView = {

@@ -545,6 +545,10 @@ async function classifyReport(
   const incident = record?.incidentId
     ? result.state.incidents.find((i) => i.id === record.incidentId)
     : undefined;
+  // Other reports already on this incident, so the citizen Result card reads "4 reports" / "N neighbours".
+  const mergedCount = incident
+    ? result.state.reports.filter((r) => r.incidentId === incident.id && r.id !== reportId).length
+    : 0;
 
   return {
     status: 200,
@@ -554,9 +558,16 @@ async function classifyReport(
       confidence,
       ...(fallbackReason ? { fallbackReason } : {}),
       rejected: record?.rejected ?? false,
+      mergedCount,
       stages: stagesFor(record?.rejected ?? false, record?.selfReported ?? false),
       incident: incident
-        ? { id: incident.id, status: incident.status, verdict: incident.verdict }
+        ? {
+            id: incident.id,
+            status: incident.status,
+            verdict: incident.verdict,
+            sectorId: incident.sectorId,
+            priority: incident.score.P,
+          }
         : undefined,
     },
   };
