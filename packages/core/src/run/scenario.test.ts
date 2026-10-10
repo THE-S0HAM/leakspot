@@ -43,6 +43,13 @@ describe("Jaldhara scenario (seed 42, autopilot, FakeVision)", () => {
     expect(b2.score.P).toBe(39);
   });
 
+  it("found exactly 1 incident by meters alone (B2) — the Day report count", () => {
+    const meterOnly = state.incidents.filter(
+      (i) => i.verdict === "HIDDEN_SUSPECTED" || i.verdict === "HIDDEN_AREA_KNOWN",
+    );
+    expect(meterOnly.map((i) => i.sectorId)).toEqual(["B2"]);
+  });
+
   it("ranks C3 > B2 > A1 > D4", () => {
     const p = (s: string) => incidentFor(state, s).score.P;
     expect(p("C3")).toBeGreaterThan(p("B2"));

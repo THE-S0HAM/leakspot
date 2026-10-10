@@ -39,7 +39,8 @@ export type SectorRuntime = {
 };
 
 export type RunEvent = {
-  at: SlotRef;
+  /** { day, slotIndex, label } — label is the HH:MM clock label so the UI never shows "undefined". */
+  at: SlotRef & { label: string };
   label: string;
   kind: "sector" | "incident" | "report" | "crew" | "city";
 };

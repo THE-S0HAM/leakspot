@@ -46,7 +46,12 @@ export function QuestCard({
   const canDispatch = status === "open" || status === "reopened";
   const enRoute = status === "dispatched";
   const onSite = status === "onsite";
-  const dispatchLabel = incident.kind === "hidden" ? "Locate & repair" : "Dispatch crew";
+  // "Locate & repair" only for a still-hidden incident with no citizen evidence (meter-only). Once a
+  // photo confirms it, the pin is known, so it reads "Dispatch crew".
+  const dispatchLabel =
+    incident.kind === "hidden" && incident.verdict === "HIDDEN_SUSPECTED"
+      ? "Locate & repair"
+      : "Dispatch crew";
   const verifyDone = incident.verifyPasses ?? 0;
   const arrived = ARRIVAL_SLOTS - crewEtaSlots;
 

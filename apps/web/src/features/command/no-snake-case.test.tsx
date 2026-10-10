@@ -119,8 +119,14 @@ describe("no snake_case in the Command Centre", () => {
     const impactText = container.textContent ?? "";
 
     for (const text of [incidentsText, impactText]) {
-      const match = text.match(/[a-z]+_[a-z]+/);
-      expect(match, `found snake_case: ${match?.[0] ?? ""}`).toBeNull();
+      expect(
+        text.match(/[a-z]+_[a-z]+/),
+        `snake_case: ${text.match(/[a-z]+_[a-z]+/)?.[0] ?? ""}`,
+      ).toBeNull();
+      // No raw incident ids (#2) or scripted report ids (S15-5-10), and no "undefined".
+      expect(text).not.toMatch(/#\d/);
+      expect(text).not.toMatch(/S\d+-\d+-\d+/);
+      expect(text).not.toContain("undefined");
     }
   });
 });

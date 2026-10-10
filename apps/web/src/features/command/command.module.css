@@ -82,6 +82,8 @@
 }
 
 .healthBar {
+  display: inline-block;
+  vertical-align: middle;
   width: 160px;
   height: 16px;
   background: var(--cloud-2);
@@ -90,6 +92,7 @@
   overflow: hidden;
 }
 .healthFill {
+  display: block;
   height: 100%;
   transition:
     width 0.4s ease-out,

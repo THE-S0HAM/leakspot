@@ -309,7 +309,7 @@ function applyReportInPlace(
     if (resolved.rejected) {
       record.rejected = true;
       state.reports.push(record);
-      events.push(event(slotRefOf(state), "report", `Report ${reportId} rejected (not a leak)`));
+      events.push(event(slotRefOf(state), "report", `Photo at ${sector} rejected: not a leak`));
       return reportId;
     }
     attachLeakPhoto(state, sector, input.position, resolved, slotRefOf(state), events, record);
@@ -523,7 +523,10 @@ function attachLeakPhoto(
     hiddenNoPhoto.hasPhoto = true;
     hiddenNoPhoto.pin = { ...position };
     record.incidentId = hiddenNoPhoto.id;
-    events.push(event(slot, "report", `${record.id} attached to ${hiddenNoPhoto.id}`));
+    const n = hiddenNoPhoto.photos.length + hiddenNoPhoto.lowWater.length;
+    events.push(
+      event(slot, "report", `Report added to the ${hiddenNoPhoto.sectorId} leak (${n} reports)`),
+    );
     return;
   }
 
@@ -539,7 +542,10 @@ function attachLeakPhoto(
     mergeTarget.photos.push(photo);
     mergeTarget.hasPhoto = true;
     record.incidentId = mergeTarget.id;
-    events.push(event(slot, "report", `${record.id} merged into ${mergeTarget.id}`));
+    const n = mergeTarget.photos.length + mergeTarget.lowWater.length;
+    events.push(
+      event(slot, "report", `Report added to the ${mergeTarget.sectorId} leak (${n} reports)`),
+    );
     return;
   }
 
@@ -576,7 +582,14 @@ function attachLowWater(
   if (nearest) {
     nearest.lowWater.push({ position });
     record.incidentId = nearest.id;
-    events.push(event(slot, "report", `${record.id} low water attached to ${nearest.id}`));
+    const n = nearest.photos.length + nearest.lowWater.length;
+    events.push(
+      event(
+        slot,
+        "report",
+        `Low-water report added to the ${nearest.sectorId} leak (${n} reports)`,
+      ),
+    );
     return;
   }
 
@@ -903,7 +916,9 @@ function incidentId(state: RunState): string {
 }
 
 function event(at: SlotRef, kind: RunEvent["kind"], label: string): RunEvent {
-  return { at: { ...at }, kind, label };
+  // Attach the HH:MM clock label (or "05:45" for the dry before-slot-0 state) so the UI shows a time.
+  const clockLabel = at.slotIndex >= 0 ? slotIndexToLabel(at.slotIndex) : "05:45";
+  return { at: { ...at, label: clockLabel }, kind, label };
 }
 
 function slotRefOf(state: RunState): SlotRef {

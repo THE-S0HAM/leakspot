@@ -458,9 +458,10 @@ export function CommandCentre(): JSX.Element {
         <span className={styles.spacer} />
         <span className={styles.hudStat}>
           City water health
-          <span className={styles.healthBar}>
+          <span className={styles.healthBar} data-testid="health-bar">
             <span
               className={styles.healthFill}
+              data-testid="health-fill"
               style={{ width: `${state.cityHealth}%`, background: healthColor(state.cityHealth) }}
             />
           </span>
@@ -666,9 +667,10 @@ export function CommandCentre(): JSX.Element {
         <PixelButton
           variant="secondary"
           className={xray ? styles.toggleOn : undefined}
+          aria-pressed={xray}
           onClick={() => setXray((v) => !v)}
         >
-          {xray ? "Hide pipes" : "X-ray"}
+          X-ray
         </PixelButton>
         <PixelButton variant="secondary" onClick={() => selectSector(null)}>
           Fit city
@@ -787,7 +789,10 @@ function DayReport({
   onNewRun: () => void;
 }): JSX.Element {
   const verified = state.incidents.filter((i) => i.status === "verified");
-  const hidden = state.incidents.filter((i) => i.kind === "hidden").length;
+  // "Found by meters alone": incidents whose verdict never gained citizen evidence (meter-only).
+  const meterOnly = state.incidents.filter(
+    (i) => i.verdict === "HIDDEN_SUSPECTED" || i.verdict === "HIDDEN_AREA_KNOWN",
+  ).length;
   const recovered = state.waterRecoveredLitres;
   return (
     <div className={styles.modalWrap}>
@@ -801,8 +806,8 @@ function DayReport({
           <span className={styles.reportNum}>{lakh(recovered)}/day</span>
           <span>Tanker-loads saved / month</span>
           <span className={styles.reportNum}>{tankers(recovered * 30)}</span>
-          <span>Hidden leaks found</span>
-          <span className={styles.reportNum}>{hidden}</span>
+          <span>Found by meters alone</span>
+          <span className={styles.reportNum}>{meterOnly}</span>
         </div>
         <PixelButton onClick={onNewRun}>New run</PixelButton>
       </div>
