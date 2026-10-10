@@ -422,7 +422,7 @@ function Bang({ x, z }: { x: number; z: number }): JSX.Element {
     ref.current.position.y = 9 + Math.abs(Math.sin(clock.elapsedTime * 3)) * 1.2;
   });
   return (
-    <group ref={ref} position={[x, 9, z]}>
+    <group ref={ref} position={[x, 9, z]} scale={[1.7, 1.7, 1.7]}>
       <mesh position={[0, 1.1, 0]}>
         <boxGeometry args={[0.7, 1.8, 0.7]} />
         <meshBasicMaterial color={HEX.sindoor} toneMapped={false} />
@@ -478,17 +478,17 @@ function VerifiedBurstFx({ x, z, litres }: { x: number; z: number; litres?: numb
         <ringGeometry args={[0.8, 1, 40]} />
         <meshBasicMaterial color={HEX.neem} transparent toneMapped={false} />
       </mesh>
-      {litres ? (
+      {
         <Html position={[x, 7, z]} center pointerEvents="none" zIndexRange={[20, 10]}>
           <div
             ref={text}
             className={styles.label}
             style={{ borderColor: HEX.neem, color: HEX.neem }}
           >
-            +{lakh(litres)} L/day
+            {litres ? `+${lakh(litres)} L/day` : "Verified by meters"}
           </div>
         </Html>
-      ) : null}
+      }
     </group>
   );
 }
@@ -545,7 +545,7 @@ export function CrewTruck({ crew }: { crew: CrewMarker | undefined }): JSX.Eleme
     }
   });
   return (
-    <group ref={group}>
+    <group ref={group} scale={[2, 2, 2]}>
       {/* body faces +x */}
       <mesh position={[1, 0.75, 0]} castShadow>
         <boxGeometry args={[1.3, 1.2, 1.4]} />

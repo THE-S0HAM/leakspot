@@ -499,7 +499,7 @@ function IncidentChips({ incidents }: { incidents: readonly IncidentView[] }): J
           return (
             <Html
               key={i.id}
-              position={[i.pin.x, 12, i.pin.z]}
+              position={[i.pin.x, 17, i.pin.z]}
               center
               zIndexRange={[10, 0]}
               pointerEvents="none"

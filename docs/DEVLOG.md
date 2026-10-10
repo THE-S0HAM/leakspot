@@ -80,3 +80,15 @@ task by running each tool's JS entry with `process.execPath`); the checkpoint-lo
 - Not done: puddle grows per real-time second, not per slot; crew route is an L-path over the grid,
   not a graph shortest path; cars slow near junctions but do not stop at red. City3D chunk 972 KB
   (260 KB gzip), lazy-loaded, so the citizen bundle is unchanged.
+
+## 2026-10-11 ~02:50 IST: Stage 1-3D live-test fixes (jobs 1-3; job 4 skipped)
+- Glitch: drei Stars under the orthographic camera (near -500) gave points near the camera a near-zero
+  depth, so their size hit the GPU point-size cap (a giant light disc, GPU-dependent, not visible in
+  headless shots). Stars removed. X-ray fade rewritten to touch materials only while X-ray is on or
+  animating (snapshot/restore per material). WebGL context loss remounts once, then falls back to 2D.
+- Perspective camera + OrbitControls (polar 20-65°), shadows, Lightformer Environment, fog; fewer and
+  bigger buildings, no pipes outside X-ray, incident-only chips, clustered icon pins, pointer tooltip.
+- Demo loop (`npm run shots -w @leakspot/web -- demo`) passes start → dispatch → on site → repaired →
+  verified → API phone report → X-ray → autopilot → Day report. Known: a new phone pin near other
+  reports merges into the cluster, so its flash is small; incident chips can overlap a cluster chip.
+- Job 4 (citizen polish) skipped: out of time.
