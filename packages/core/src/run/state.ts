@@ -26,6 +26,9 @@ export type SectorRuntime = {
   lossRatio: number;
   baselineRatio: number;
   excessLitresPerDay: number;
+  /** this slot's inlet reading (litres) and consumption (litres), for the sector tooltip/panel. */
+  inflowLitres: number;
+  usedLitres: number;
   /** consecutive anomalous slots (for watch→suspected) and non-anomalous slots (for return). */
   anomalousStreak: number;
   normalStreak: number;

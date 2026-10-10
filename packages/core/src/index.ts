@@ -22,6 +22,7 @@ export {
   createRun,
   rebuildContext,
   getContext,
+  isDayOver,
   tick,
   addReport,
   dispatch,

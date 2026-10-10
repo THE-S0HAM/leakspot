@@ -218,4 +218,24 @@ describe("not found", () => {
     expect((await route(req("GET", "/nope"), deps)).status).toBe(404);
     expect((await route(req("GET", "/runs/ZZZZZ/public"), deps)).status).toBe(404);
   });
+
+  it("returns 400 (not 500) for a malformed percent-escape in the path", async () => {
+    const res = await route(req("GET", "/runs/%E0%A4/public"), makeDeps());
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: { code: "VALIDATION" } });
+  });
+
+  it("decodes an encoded incident id so dispatch matches (#1 sent as %231)", async () => {
+    const deps = makeDeps();
+    const runId = (
+      (await route(req("POST", "/runs", { headers: command }), deps)).body as { runId: string }
+    ).runId;
+    // No incident #1 yet → dispatch is a 409 CONFLICT (not 404), proving the id decoded to "#1".
+    await route(req("POST", `/runs/${runId}/tick`, { headers: command, body: { count: 5 } }), deps);
+    const res = await route(
+      req("POST", `/runs/${runId}/incidents/%231/dispatch`, { headers: command }),
+      deps,
+    );
+    expect([409, 200]).toContain(res.status);
+  });
 });

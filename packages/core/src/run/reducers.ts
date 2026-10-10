@@ -58,7 +58,7 @@ const VERIFIED_GLOW_SLOTS = 3;
 const SCENARIO_DAY = 15;
 // Keep the META compact (≤ 8 KB, deadline-mode): only the most recent events live on the aggregate;
 // the full history for replay is reconstructed from TICK items by the API, not stored here.
-const RECENT_EVENTS_MAX = 12;
+const RECENT_EVENTS_MAX = 8;
 
 // ---------- public API ----------
 
@@ -71,6 +71,8 @@ export function createRun(seed = 42): CreateRunResult {
     lossRatio: 0,
     baselineRatio: 0,
     excessLitresPerDay: 0,
+    inflowLitres: 0,
+    usedLitres: 0,
     anomalousStreak: 0,
     normalStreak: 0,
     recentExcessPerSlot: [],
@@ -125,7 +127,15 @@ export function setAutopilot(state: RunState, on: boolean): ReducerResult {
   return finish(next, events);
 }
 
+/** The scenario is one day (day 15). Once its last supply slot (19 = 20:00) is done, the day is over. */
+export function isDayOver(state: RunState): boolean {
+  return state.clock.day >= SCENARIO_DAY && state.clock.slotIndex >= SLOTS_PER_DAY - 1;
+}
+
 export function tick(state: RunState, context: RunContext): ReducerResult {
+  if (isDayOver(state)) {
+    throw new DomainConflict("The day is over");
+  }
   const next = clone(state);
   const events: RunEvent[] = [];
 
@@ -154,8 +164,10 @@ export function tick(state: RunState, context: RunContext): ReducerResult {
       scale: 0.005,
     };
 
-    runtime.lossRatio = round4(balance.lossRatio);
-    runtime.baselineRatio = round4(baseline.median);
+    runtime.lossRatio = round3(balance.lossRatio);
+    runtime.baselineRatio = round3(baseline.median);
+    runtime.inflowLitres = Math.round(balance.inlet);
+    runtime.usedLitres = Math.round(balance.consumption);
 
     if (balance.dataGap) {
       // data gap: no alarm, streak counters untouched.
@@ -305,7 +317,7 @@ export function dispatch(state: RunState, incidentId: string): ReducerResult {
   }
   next.crew = { status: "dispatched", incidentId, etaSlots: CREW_ARRIVAL_SLOTS };
   incident.status = "dispatched";
-  return finish(next, [event(next.clock, "crew", `Crew dispatched to ${incidentId}`)]);
+  return finish(next, [event(next.clock, "crew", `Crew dispatched to ${incident.sectorId}`)]);
 }
 
 export function repair(state: RunState, context: RunContext, incidentId: string): ReducerResult {
@@ -317,7 +329,7 @@ export function repair(state: RunState, context: RunContext, incidentId: string)
   }
   applyRepair(next, context, incident);
   next.crew = { status: "idle", etaSlots: undefined };
-  return finish(next, [event(next.clock, "crew", `Repair marked at ${incidentId}`)]);
+  return finish(next, [event(next.clock, "crew", `Repair marked at ${incident.sectorId}`)]);
 }
 
 export class DomainConflict extends Error {
@@ -462,7 +474,7 @@ function createHiddenIncident(
     why: "",
   };
   state.incidents.push(incident);
-  events.push(event(slot, "incident", `${incident.id} hidden leak suspected in ${sectorId}`));
+  events.push(event(slot, "incident", `${sectorId} hidden leak suspected`));
   return incident;
 }
 
@@ -528,7 +540,7 @@ function attachLeakPhoto(
   };
   state.incidents.push(incident);
   record.incidentId = incident.id;
-  events.push(event(slot, "incident", `${incident.id} local leak reported in ${sectorId}`));
+  events.push(event(slot, "incident", `${sectorId} local leak reported`));
 }
 
 function attachLowWater(
@@ -595,7 +607,7 @@ function createClusterIncident(
     why: "",
   };
   state.incidents.push(incident);
-  events.push(event(slot, "incident", `${incident.id} low-water cluster in ${sectorId}`));
+  events.push(event(slot, "incident", `${sectorId} low-water cluster`));
   return incident;
 }
 
@@ -610,7 +622,7 @@ function advanceCrew(state: RunState, slot: SlotRef, events: RunEvent[]): void {
     crew.etaSlots = undefined;
     const incident = state.incidents.find((i) => i.id === crew.incidentId);
     if (incident) incident.status = "onsite";
-    events.push(event(slot, "crew", `Crew on site at ${crew.incidentId}`));
+    events.push(event(slot, "crew", `Crew on site at ${incident?.sectorId ?? "the leak"}`));
   }
 }
 
@@ -628,7 +640,7 @@ function runAutopilot(
     if (incident) {
       applyRepair(state, context, incident);
       state.crew = { status: "idle" };
-      events.push(event(slot, "crew", `Repair marked at ${incident.id}`));
+      events.push(event(slot, "crew", `Repair marked at ${incident.sectorId}`));
     }
     return;
   }
@@ -638,7 +650,7 @@ function runAutopilot(
     if (target) {
       state.crew = { status: "dispatched", incidentId: target.id, etaSlots: CREW_ARRIVAL_SLOTS };
       target.status = "dispatched";
-      events.push(event(slot, "crew", `Crew dispatched to ${target.id}`));
+      events.push(event(slot, "crew", `Crew dispatched to ${target.sectorId}`));
     }
   }
 }
@@ -724,13 +736,13 @@ function progressVerification(
           runtime.verifiedGlow = VERIFIED_GLOW_SLOTS;
           runtime.excessLitresPerDay = 0;
         }
-        events.push(event(slot, "incident", `${incident.id} verified by meters`));
+        events.push(event(slot, "incident", `${incident.sectorId} verified by meters`));
       }
     } else {
       incident.status = "reopened";
       incident.verifyPasses = 0;
       if (runtime) runtime.status = "suspected";
-      events.push(event(slot, "incident", `${incident.id} reopened (excess returned)`));
+      events.push(event(slot, "incident", `${incident.sectorId} reopened, excess returned`));
     }
   }
 
@@ -803,12 +815,25 @@ function whyLine(incident: Incident, excessLitresPerDay: number): string {
   if (excessLitresPerDay > 0) parts.push(`Excess ${formatLakh(excessLitresPerDay)} L/day`);
   const evidence = incident.photos.length + incident.lowWater.length;
   if (evidence > 0) {
-    const topLabel = incident.photos[0]?.label ?? "low water";
+    const topLabel = humanLabel(incident.photos[0]?.label ?? "low water");
     parts.push(`${evidence} reports (${topLabel})`);
   }
   const signals = (incident.score.K > 0 ? Math.round(incident.score.K * 3) : 0) + "";
   parts.push(`${signals} of 3 signals agree`);
   return parts.join(", ");
+}
+
+/** Human words for a vision label inside the why-line (no snake_case reaches the UI). */
+function humanLabel(label: string): string {
+  const map: Record<string, string> = {
+    burst: "burst",
+    sewage_mixing: "sewage in supply",
+    major_leak: "major leak",
+    minor_drip: "small drip",
+    unclear: "unclear photo",
+    "low water": "low water",
+  };
+  return map[label] ?? label.replace(/_/g, " ");
 }
 
 function recomputeCityHealth(state: RunState): void {
@@ -883,8 +908,8 @@ function mean(values: readonly number[]): number {
   return values.reduce((s, v) => s + v, 0) / values.length;
 }
 
-function round4(value: number): number {
-  return Math.round(value * 10000) / 10000;
+function round3(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 function clamp(value: number, lo: number, hi: number): number {

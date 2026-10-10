@@ -200,17 +200,18 @@ async function mutate(
   return err(503, "BUSY", "The run is busy, retry shortly", 1);
 }
 
-function decodeSegment(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    return segment;
-  }
-}
-
 export async function route(req: RouterRequest, deps: RouterDeps): Promise<RouterResult> {
-  // Path params (e.g. incident id "#1" sent as "%231") must be decoded before matching.
-  const segments = req.path.split("/").filter(Boolean).map(decodeSegment);
+  // Path params (e.g. incident id "#1" sent as "%231") must be decoded before matching. A malformed
+  // percent-escape is a bad request, not a server error.
+  let segments: string[];
+  try {
+    segments = req.path
+      .split("/")
+      .filter(Boolean)
+      .map((s) => decodeURIComponent(s));
+  } catch {
+    return err(400, "VALIDATION", "The request path is malformed");
+  }
   const { method } = req;
 
   // GET /health
@@ -285,14 +286,19 @@ async function routeRun(
     const parsed = TickBody.safeParse(req.body ?? { count: 1 });
     if (!parsed.success) return err(400, "VALIDATION", "count must be an integer 1–4");
     const context = getContext(42);
-    const result = await mutate(deps, runId, (state) => {
-      let s = state;
-      for (let i = 0; i < parsed.data.count; i += 1) s = tick(s, context).state;
-      return s;
-    });
-    return "state" in result
-      ? { status: 200, body: { runId, ...(fullState(result.state) as object) } }
-      : result;
+    try {
+      const result = await mutate(deps, runId, (state) => {
+        let s = state;
+        for (let i = 0; i < parsed.data.count; i += 1) s = tick(s, context).state;
+        return s;
+      });
+      return "state" in result
+        ? { status: 200, body: { runId, ...(fullState(result.state) as object) } }
+        : result;
+    } catch (error) {
+      if (error instanceof DomainConflict) return err(409, "CONFLICT", error.message);
+      throw error;
+    }
   }
 
   // POST /runs/{id}/autopilot  (command)
