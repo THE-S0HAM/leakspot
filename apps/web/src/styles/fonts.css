@@ -1,2 +1,9 @@
-/* Self-hosted display face: Pixelify Sans is bundled by Vite so the page fetches no external font origin. */
-@import "@fontsource/pixelify-sans";
+/* Self-hosted faces bundled by Vite (no external font origin). Pixelify Sans for display, JetBrains
+   Mono for everything else (tabular figures), Noto Sans Devanagari for Hindi/Marathi. */
+@import "@fontsource/pixelify-sans/500.css";
+@import "@fontsource/pixelify-sans/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
+@import "@fontsource/noto-sans-devanagari/400.css";
+@import "@fontsource/noto-sans-devanagari/600.css";

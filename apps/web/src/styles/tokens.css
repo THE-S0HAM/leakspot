@@ -1,0 +1,66 @@
+/* Design tokens (design-system.md "Blueprint Blocks"). Two themes: Monsoon Night (command/landing,
+   default on :root) and Neel Limewash (citizen, applied with [data-theme="limewash"]). Status is never
+   colour alone — the UI always pairs a colour with a word. All text/background pairs meet 4.5:1. */
+
+:root {
+  /* Monsoon Night */
+  --night: #0e1828;
+  --cloud: #172539;
+  --cloud-2: #21324a;
+  --rule: #2e4361;
+  --ink: #e7eef7;
+  --ink-dim: #9db0c9;
+  --jal: #35d3f0;
+  --neem: #49d49a;
+  --haldi: #f4b43a;
+  --sindoor: #ff7183;
+  --neel: #a99bff;
+
+  --bg: var(--night);
+  --panel: var(--cloud);
+  --panel-2: var(--cloud-2);
+  --accent: var(--jal);
+  --accent-ink: var(--night); /* text on jal/neem/haldi/sindoor fills */
+  --side-face: var(--rule); /* block side face colour */
+
+  /* Type scale (rem, 16px base, ~1.25 ratio) */
+  --font-display: "Pixelify Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --t-0: 0.8rem;
+  --t-1: 1rem;
+  --t-2: 1.25rem;
+  --t-3: 1.563rem;
+  --t-4: 1.953rem;
+  --t-5: 2.441rem;
+  --t-hero: 3.815rem;
+
+  --space: 8px;
+  --radius: 0; /* square corners; depth comes from the side face, not rounding */
+
+  color-scheme: dark;
+}
+
+/* Neel Limewash: citizen surfaces. */
+[data-theme="limewash"] {
+  --lime: #edf2f5;
+  --wall: #ffffff;
+  --rule: #c6d2dd;
+  --ink: #13233f;
+  --ink-dim: #4a5b78;
+  --tank: #0b5fb0;
+  --neem: #0e7a4f;
+  --haldi: #f2b705;
+  --haldi-text: #7a5300;
+  --sindoor: #b4152c;
+  --neel: #5b47d6;
+
+  --bg: var(--lime);
+  --panel: var(--wall);
+  --panel-2: var(--wall);
+  --accent: var(--tank);
+  --accent-ink: #ffffff; /* white text on the tank-blue primary */
+  --side-face: var(--ink); /* citizen depth face is ink, not rule */
+  --jal: var(--tank);
+
+  color-scheme: light;
+}

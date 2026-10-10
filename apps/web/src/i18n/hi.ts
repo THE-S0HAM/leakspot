@@ -1,0 +1,52 @@
+// Hindi strings (हिंदी). Same keys as en.ts.
+import type { Strings } from "./t";
+
+export const hi: Strings = {
+  appTitle: "लीकस्पॉट",
+  simulatedCity: "सिम्युलेटेड शहर",
+  pitch: "वह पानी ढूँढें जो शहर को नहीं दिखता।",
+  reportALeak: "लीक की सूचना दें",
+  enterCommand: "कमांड सेंटर में जाएँ",
+
+  chooseLanguage: "अपनी भाषा चुनें",
+  iSeeALeak: "मुझे लीक दिख रहा है",
+  lowNoWater: "कम / नहीं पानी",
+  myTickets: "मेरे टिकट",
+  joinRun: "शहर का कोड डालें",
+  flowing: "पानी बह रहा है",
+  dripping: "बस टपक रहा है",
+  weakFlow: "कमज़ोर धार",
+  noWater: "पानी नहीं",
+  tapTheSpot: "जहाँ दिखे वहाँ टैप करें",
+  send: "भेजें",
+  retakePhoto: "फिर से फ़ोटो लें",
+  takePhoto: "फ़ोटो लें",
+  offline:
+    "आप ऑफ़लाइन हैं। आपकी फ़ोटो और चुनाव सुरक्षित हैं; दोबारा कनेक्ट होने पर भेजें काम करेगा।",
+  photoTooLarge: "यह फ़ोटो 400 KB से बड़ी है। दोबारा लें या पास जाएँ।",
+  reportRejected: "यह फ़ोटो लीक जैसी नहीं लगी। पास से एक और लें।",
+
+  received: "प्राप्त",
+  checked: "जाँचा गया",
+  crewAssigned: "टीम भेजी",
+  repaired: "मरम्मत",
+  confirmedByMeters: "मीटर से पुष्टि",
+  ticketTitle: "आपका टिकट",
+  archivedNote: "शोकेस शहर फिर से शुरू हुआ; यह रिपोर्ट पिछले दौर की थी।",
+
+  enterCode: "कमांड कोड डालें",
+  newRun: "मेरा रन शुरू करें",
+  cityWaterHealth: "शहर जल स्वास्थ्य",
+  waterRecovered: "बचाया गया पानी",
+  supplyOn: "आपूर्ति चालू",
+  supplyOff: "आपूर्ति बंद",
+  play: "चलाएँ",
+  pause: "रोकें",
+  step: "एक कदम",
+  autopilot: "ऑटोपायलट",
+  dispatchCrew: "टीम भेजें",
+  markRepaired: "मरम्मत दर्ज करें",
+  verified: "मीटर से सत्यापित",
+  withWithout: "लीकस्पॉट के साथ बनाम बिना",
+  simulation: "सिम्युलेशन",
+};

@@ -1,0 +1,57 @@
+/* Global base: tokens + fonts, box-sizing, body defaults, tabular figures, focus ring, reduced motion.
+   Imported once from main.tsx. */
+@import "./tokens.css";
+@import "./fonts.css";
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--t-1);
+  line-height: 1.45;
+  font-feature-settings: "tnum" 1; /* tabular figures so counting numbers never jitter */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Devanagari for Hindi/Marathi documents. */
+:lang(hi),
+:lang(mr) {
+  font-family: "Noto Sans Devanagari", var(--font-mono);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.1;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -1,0 +1,241 @@
+/* Command Centre layout (Monsoon Night). Desktop ≥ 1024 px: three columns (zone rail, city, incidents)
+   with a control bar below. Below that: single column, rails stack above the city. */
+
+.gate {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.gateCard {
+  width: min(420px, 100%);
+  text-align: center;
+  display: grid;
+  gap: 16px;
+}
+.codeRow {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.codeCell {
+  width: 40px;
+  height: 52px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--t-2);
+  text-transform: uppercase;
+  background: var(--cloud);
+  color: var(--ink);
+  border: 2px solid var(--rule);
+}
+.codeCell:focus-visible {
+  border-color: var(--jal);
+  outline: none;
+}
+.error {
+  color: var(--sindoor);
+  font-size: var(--t-0);
+  min-height: 1.2em;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--cloud);
+}
+.brand {
+  font-family: var(--font-display);
+  font-size: var(--t-2);
+}
+.spacer {
+  flex: 1;
+}
+.clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+}
+
+.healthBar {
+  width: 160px;
+  height: 14px;
+  background: var(--cloud-2);
+  border: 1px solid var(--rule);
+  position: relative;
+}
+.healthFill {
+  height: 100%;
+  background: var(--neem);
+  transition: width 0.4s ease-out;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 180px 1fr 300px;
+  gap: 1px;
+  background: var(--rule);
+  flex: 1;
+  min-height: 0;
+}
+.col {
+  background: var(--night);
+  padding: 12px;
+  overflow-y: auto;
+}
+.cityCol {
+  background: var(--night);
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.zoneRow {
+  display: grid;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--t-0);
+}
+.zoneBars {
+  display: flex;
+  gap: 2px;
+}
+.zoneBar {
+  height: 6px;
+  flex: 1;
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-1);
+  color: var(--ink-dim);
+  margin-bottom: 8px;
+}
+
+.card {
+  background: var(--cloud);
+  border: 1px solid var(--rule);
+  box-shadow: 0 3px 0 var(--rule);
+  padding: 10px;
+  margin-bottom: 10px;
+  display: grid;
+  gap: 6px;
+}
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.score {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: var(--t-2);
+}
+.why {
+  font-size: var(--t-0);
+  color: var(--ink-dim);
+}
+.weck {
+  display: flex;
+  gap: 8px;
+  font-size: var(--t-0);
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.cardActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.feed {
+  font-size: var(--t-0);
+  display: grid;
+  gap: 3px;
+}
+.feedLine {
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--rule);
+  padding: 2px 0;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--rule);
+  background: var(--cloud);
+}
+
+.toggleOn {
+  background: var(--neem);
+}
+
+.qr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--t-0);
+}
+.qr img {
+  width: 72px;
+  height: 72px;
+  image-rendering: pixelated;
+  background: #fff;
+  padding: 4px;
+}
+
+.counterfactual {
+  display: grid;
+  gap: 8px;
+  font-size: var(--t-0);
+}
+.slider {
+  display: grid;
+  gap: 2px;
+}
+.cfTotal {
+  font-family: var(--font-display);
+  font-size: var(--t-2);
+  color: var(--jal);
+}
+
+.banner {
+  background: var(--neem);
+  color: var(--night);
+  font-family: var(--font-display);
+  text-align: center;
+  padding: 8px;
+  animation: slideIn 0.25s ease-out;
+}
+@keyframes slideIn {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1023px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+  .col {
+    max-height: none;
+  }
+}

@@ -1,0 +1,52 @@
+// English strings. The key set here is the contract; hi.ts and mr.ts must define the same keys.
+export const en = {
+  appTitle: "LeakSpot",
+  simulatedCity: "Simulated city",
+  pitch: "Find the water the city can't see.",
+  reportALeak: "Report a leak",
+  enterCommand: "Enter command centre",
+
+  // citizen
+  chooseLanguage: "Choose your language",
+  iSeeALeak: "I see a leak",
+  lowNoWater: "Low / no water",
+  myTickets: "My tickets",
+  joinRun: "Enter a city code",
+  flowing: "Water flowing",
+  dripping: "Just dripping",
+  weakFlow: "Weak flow",
+  noWater: "No water",
+  tapTheSpot: "Tap where you see it",
+  send: "Send",
+  retakePhoto: "Retake photo",
+  takePhoto: "Take a photo",
+  offline: "You're offline. Your photo and choices are kept; Send works again once you reconnect.",
+  photoTooLarge: "That photo is over 400 KB. Retake it or move closer.",
+  reportRejected: "That photo didn't look like a leak. Take another, closer shot.",
+
+  // ticket tracker
+  received: "Received",
+  checked: "Checked",
+  crewAssigned: "Crew assigned",
+  repaired: "Repaired",
+  confirmedByMeters: "Confirmed by meters",
+  ticketTitle: "Your ticket",
+  archivedNote: "The showcase city restarted; this report was part of an earlier round.",
+
+  // command
+  enterCode: "Enter the command code",
+  newRun: "Start my run",
+  cityWaterHealth: "City water health",
+  waterRecovered: "Water recovered",
+  supplyOn: "Supply on",
+  supplyOff: "Supply off",
+  play: "Play",
+  pause: "Pause",
+  step: "Step",
+  autopilot: "Autopilot",
+  dispatchCrew: "Dispatch crew",
+  markRepaired: "Mark repaired",
+  verified: "Verified by meters",
+  withWithout: "With vs without LeakSpot",
+  simulation: "simulation",
+} as const;
