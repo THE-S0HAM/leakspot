@@ -17,7 +17,8 @@ import {
   tickRun,
 } from "../../api/client";
 import type { RecentReport, RunStateView, SectorStatus } from "../../state/view-types";
-import { CityView, type CrewMarker } from "../../world/CityView";
+import { CityCanvas } from "../../world/CityCanvas";
+import { type CrewMarker } from "../../world/CityView";
 import { BASE_VIEWBOX, project, VIEW_H, VIEW_W } from "../../world/iso";
 import { PixelButton } from "../../ui/PixelButton";
 import { SimLabel, healthColor } from "../../ui/StatusBadge";
@@ -509,7 +510,7 @@ export function CommandCentre(): JSX.Element {
 
         {hover && <SectorTooltip state={state} sectorId={hover} />}
 
-        <CityView
+        <CityCanvas
           sectorStatus={sectors}
           incidents={state.incidents}
           reports={state.recentReports}
@@ -517,6 +518,7 @@ export function CommandCentre(): JSX.Element {
           supplyOn={state.supplyOn}
           xray={xray}
           viewBox={viewBox}
+          simClock={state.simClock}
           onSelectSector={selectSector}
           onHoverSector={setHover}
           onSelectReport={setSelectedReport}

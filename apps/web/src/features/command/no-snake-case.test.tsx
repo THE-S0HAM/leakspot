@@ -84,6 +84,8 @@ vi.mock("../../api/client", () => ({
   repairIncident: vi.fn(async () => state()),
 }));
 vi.mock("qrcode", () => ({ default: { toDataURL: vi.fn(async () => "data:,") } }));
+// Not testing the city view here; stub it so the three.js chunk never enters the module graph.
+vi.mock("../../world/CityCanvas", () => ({ CityCanvas: () => null }));
 
 import { MemoryRouter } from "react-router";
 import { CommandCentre } from "./CommandCentre";

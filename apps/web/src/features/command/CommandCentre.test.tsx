@@ -105,6 +105,12 @@ vi.mock("../../api/client", () => ({
 // qrcode is loaded by QrJoin on the Impact tab; stub it so the test never touches it.
 vi.mock("qrcode", () => ({ default: { toDataURL: vi.fn(async () => "data:,") } }));
 
+// The city view isn't under test here; stub it so these tests never pull the three.js chunk into the
+// module graph (keeps them fast and deterministic). The real fallback choice is covered elsewhere.
+vi.mock("../../world/CityCanvas", () => ({
+  CityCanvas: () => null,
+}));
+
 import { MemoryRouter } from "react-router";
 import { CommandCentre } from "./CommandCentre";
 

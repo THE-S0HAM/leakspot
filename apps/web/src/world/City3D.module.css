@@ -1,0 +1,57 @@
+/* City3D layout: a full-area canvas over a CSS sky gradient, with rotate buttons bottom-left. */
+.wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* drei <Html> sector label: mono, tabular, chip background, readable (>=13px). */
+.label {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  white-space: nowrap;
+  padding: 2px 6px;
+  color: var(--ink);
+  background: rgba(14, 24, 40, 0.82);
+  border: 1px solid var(--rule);
+  border-left-width: 3px;
+  user-select: none;
+}
+.label b {
+  font-weight: 700;
+}
+
+.rotateControls {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+.rotateBtn {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
+  background: rgba(23, 37, 57, 0.9);
+  border: 2px solid var(--rule);
+  cursor: pointer;
+}
+.rotateBtn:hover {
+  background: var(--cloud-2);
+}

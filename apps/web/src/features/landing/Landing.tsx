@@ -4,7 +4,7 @@
 import { useMemo, type JSX } from "react";
 import { Link } from "react-router";
 import { SECTORS, type SectorId } from "@leakspot/core/world";
-import { CityView } from "../../world/CityView";
+import { CityCanvas } from "../../world/CityCanvas";
 import type { SectorStatus } from "../../state/view-types";
 import { PixelButton } from "../../ui/PixelButton";
 import { SimLabel } from "../../ui/StatusBadge";
@@ -34,7 +34,12 @@ export function Landing(): JSX.Element {
       </header>
 
       <div className={styles.hero}>
-        <CityView sectorStatus={allNormal} supplyOn spectator />
+        <CityCanvas
+          sectorStatus={allNormal}
+          supplyOn
+          spectator
+          simClock={{ day: 15, slotIndex: 6, label: "09:00" }}
+        />
       </div>
 
       <section className={styles.pitch}>
