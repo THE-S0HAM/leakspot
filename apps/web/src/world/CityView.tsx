@@ -5,7 +5,7 @@
 
 import { memo, useMemo, type JSX } from "react";
 import { FACILITIES, RESERVOIR, SECTORS, type Point, type SectorId } from "@leakspot/core/world";
-import type { IncidentView, SectorStatus } from "../state/view-types";
+import type { IncidentView, RecentReport, SectorStatus } from "../state/view-types";
 import { STATUS_WORD } from "./status";
 import { buildCity, ZONE_TINT } from "./city-geometry";
 import { SERVICE_PIPES, TRUNK, ZONE_MAINS, type Segment } from "./pipes";
@@ -17,6 +17,7 @@ export type CrewMarker = { x: number; z: number; repairing: boolean } | null;
 export type CityViewProps = {
   sectorStatus: Record<SectorId, SectorStatus>;
   incidents?: IncidentView[];
+  reports?: RecentReport[];
   crew?: CrewMarker;
   supplyOn?: boolean;
   xray?: boolean;
@@ -25,6 +26,7 @@ export type CityViewProps = {
   spectator?: boolean;
   onSelectSector?: (id: SectorId) => void;
   onHoverSector?: (id: SectorId | null) => void;
+  onSelectReport?: (reportId: string) => void;
 };
 
 const city = buildCity(42);
@@ -208,12 +210,14 @@ export function CityView(props: CityViewProps): JSX.Element {
     sectorStatus,
     incidents = [],
     crew = null,
+    reports = [],
     supplyOn = false,
     xray = false,
     viewBox = BASE_VIEWBOX,
     spectator = false,
     onSelectSector,
     onHoverSector,
+    onSelectReport,
   } = props;
 
   // Spectator (landing): no selection or hover handlers.
@@ -389,6 +393,38 @@ export function CityView(props: CityViewProps): JSX.Element {
             </g>
           );
         })}
+
+        {/* Citizen/scripted report pins: bright phone pins (camera for photo, tap for low water) bounce
+            in; scripted reports are small grey pins. Click opens the report panel. */}
+        {!spectator &&
+          reports.map((r) => {
+            const p = project(r.x, r.z, 0);
+            const phone = r.source === "phone";
+            const color = phone ? "var(--jal)" : "var(--ink-dim)";
+            return (
+              <g
+                key={`rep-${r.reportId}`}
+                className={phone ? styles.pin : undefined}
+                transform={`translate(${p.sx}, ${p.sy})`}
+                style={onSelectReport ? { cursor: "pointer" } : undefined}
+                onClick={onSelectReport ? () => onSelectReport(r.reportId) : undefined}
+              >
+                <line x1={0} y1={0} x2={0} y2={-9} stroke={color} strokeWidth={1} />
+                <rect
+                  x={-4}
+                  y={-15}
+                  width={8}
+                  height={6}
+                  fill={color}
+                  stroke="var(--night)"
+                  strokeWidth={0.6}
+                />
+                <text x={0} y={-10} textAnchor="middle" fontSize={4} fill="var(--night)">
+                  {r.type === "leak_photo" ? "▸" : "~"}
+                </text>
+              </g>
+            );
+          })}
 
         {/* Crew truck */}
         {crew && <CrewTruck x={crew.x} z={crew.z} repairing={crew.repairing} />}

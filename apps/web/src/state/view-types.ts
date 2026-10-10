@@ -47,6 +47,20 @@ export type SectorRuntime = {
 
 export type RunEvent = { at: SimClock; label: string; kind: string };
 
+export type RecentReport = {
+  code: string;
+  reportId: string;
+  x: number;
+  z: number;
+  sectorId: SectorId;
+  type: "leak_photo" | "low_water";
+  label: string | null;
+  confidence: number | null;
+  status: string;
+  simTime: string | null;
+  source: "phone" | "simulated";
+};
+
 export type RunStateView = {
   runId: string;
   cycle: number;
@@ -59,6 +73,7 @@ export type RunStateView = {
   sectors: SectorRuntime[];
   incidents: IncidentView[];
   recentEvents: RunEvent[];
+  recentReports: RecentReport[];
 };
 
 export type PublicStateView = {

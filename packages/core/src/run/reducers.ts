@@ -295,6 +295,9 @@ function applyReportInPlace(
     rejected: false,
     selfReported: false,
     scripted,
+    position: { x: input.position.x, z: input.position.z },
+    confidence: input.confidence,
+    simTime: state.clockLabel,
   };
 
   if (input.type === "leak_photo") {

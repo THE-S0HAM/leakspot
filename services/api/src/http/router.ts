@@ -108,7 +108,7 @@ function incidentView(incident: Incident): unknown {
   };
 }
 
-function fullState(state: RunState): unknown {
+function fullState(runId: string, state: RunState): unknown {
   return {
     seed: state.seed,
     cycle: state.cycle,
@@ -121,7 +121,34 @@ function fullState(state: RunState): unknown {
     sectors: state.sectors,
     incidents: state.incidents.map(incidentView),
     recentEvents: state.recentEvents,
+    recentReports: recentReportsView(runId, state),
   };
+}
+
+/** The last 12 reports as map pins (derived per request; not stored on the aggregate). */
+function recentReportsView(runId: string, state: RunState): unknown[] {
+  return state.reports
+    .filter((r) => r.position)
+    .slice(-12)
+    .map((r) => {
+      const incident = r.incidentId
+        ? state.incidents.find((i) => i.id === r.incidentId)
+        : undefined;
+      const status = r.rejected ? "rejected" : (incident?.status ?? "pending");
+      return {
+        code: ticketCode(runId, r.id),
+        reportId: r.id,
+        x: r.position?.x ?? 0,
+        z: r.position?.z ?? 0,
+        sectorId: r.sectorId,
+        type: r.type,
+        label: r.label ?? null,
+        confidence: r.confidence ?? null,
+        status,
+        simTime: r.simTime ?? null,
+        source: r.scripted ? "simulated" : "phone",
+      };
+    });
 }
 
 function reportView(runId: string, state: RunState, reportId: string): RouterResult {
@@ -284,7 +311,7 @@ async function routeRun(
     if (unauthorized) return unauthorized;
     const stored = await deps.runStore.get(runId);
     if (!stored) return err(404, "NOT_FOUND", "No such run");
-    return { status: 200, body: { runId, ...(fullState(stored.state) as object) } };
+    return { status: 200, body: { runId, ...(fullState(runId, stored.state) as object) } };
   }
 
   // POST /runs/{id}/tick  (command)
@@ -301,7 +328,7 @@ async function routeRun(
         (state) => tickMany(state, context, parsed.data.count).state,
       );
       return "state" in result
-        ? { status: 200, body: { runId, ...(fullState(result.state) as object) } }
+        ? { status: 200, body: { runId, ...(fullState(runId, result.state) as object) } }
         : result;
     } catch (error) {
       if (error instanceof DomainConflict) return err(409, "CONFLICT", error.message);
@@ -317,7 +344,7 @@ async function routeRun(
     if (!parsed.success) return err(400, "VALIDATION", "on must be a boolean");
     const result = await mutate(deps, runId, (state) => setAutopilot(state, parsed.data.on).state);
     return "state" in result
-      ? { status: 200, body: { runId, ...(fullState(result.state) as object) } }
+      ? { status: 200, body: { runId, ...(fullState(runId, result.state) as object) } }
       : result;
   }
 
@@ -356,7 +383,7 @@ async function routeIncidentAction(
     );
     if (action !== "dispatch" && action !== "repair") return NOT_FOUND;
     return "state" in result
-      ? { status: 200, body: { runId, ...(fullState(result.state) as object) } }
+      ? { status: 200, body: { runId, ...(fullState(runId, result.state) as object) } }
       : result;
   } catch (error) {
     if (error instanceof DomainConflict) {

@@ -54,8 +54,12 @@ export type ReportRecord = {
   label?: string;
   /** true for scripted NPC reports applied by tick. */
   scripted?: boolean;
-  /** low-water report position, kept for the pending-cluster rule. */
+  /** report position in world units (all report types), for the command map pins. */
   position?: { x: number; z: number };
+  /** vision confidence 0–1 (photos); undefined for low water / self-reported. */
+  confidence?: number;
+  /** sim-clock label when the report was created, e.g. "07:30". */
+  simTime?: string;
 };
 
 export type RunState = {

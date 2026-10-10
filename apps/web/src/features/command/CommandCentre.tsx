@@ -10,18 +10,19 @@ import {
   ApiCallError,
   createRun,
   dispatchCrew,
+  getReportPhotoUrl,
   getState,
   repairIncident,
   setAutopilot,
   tickRun,
 } from "../../api/client";
-import type { RunStateView, SectorStatus } from "../../state/view-types";
+import type { RecentReport, RunStateView, SectorStatus } from "../../state/view-types";
 import { CityView, type CrewMarker } from "../../world/CityView";
 import { BASE_VIEWBOX, project, VIEW_H, VIEW_W } from "../../world/iso";
 import { PixelButton } from "../../ui/PixelButton";
 import { SimLabel, healthColor } from "../../ui/StatusBadge";
 import { lakh, litres, tankers } from "../../ui/format";
-import { incidentStatusWord, verdictWord } from "../../ui/words";
+import { incidentStatusWord, labelWord, verdictWord } from "../../ui/words";
 import { CodeGate } from "./CodeGate";
 import { QuestCard } from "./QuestCard";
 import { QrJoin } from "./QrJoin";
@@ -99,8 +100,10 @@ export function CommandCentre(): JSX.Element {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickInFlight = useRef(false);
   const seenEvents = useRef(0);
+  const seenReports = useRef<Set<string>>(new Set());
   const popupId = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const [selectedReport, setSelectedReport] = useState<string | null>(null);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -130,12 +133,40 @@ export function CommandCentre(): JSX.Element {
     }
   }, []);
 
+  // New phone reports → a map pop-up "07:30 · Phone photo at D2 · AI: small drip, 90%" and a feed line.
+  const absorbReports = useCallback((next: RunStateView) => {
+    const known = seenReports.current;
+    if (known.size === 0 && next.recentReports.length > 0) {
+      // first load: mark all as seen, don't flood pop-ups
+      for (const r of next.recentReports) known.add(r.reportId);
+      return;
+    }
+    for (const r of next.recentReports) {
+      if (known.has(r.reportId)) continue;
+      known.add(r.reportId);
+      if (r.source !== "phone") continue;
+      const ai =
+        r.label && r.label !== "self_reported"
+          ? `AI: ${labelWord(r.label)}${r.confidence ? `, ${Math.round(r.confidence * 100)}%` : ""}`
+          : "self-reported";
+      const kind: Popup["kind"] = r.label === "not_a_leak" ? "info" : "confirmed";
+      const id = (popupId.current += 1);
+      const what = r.type === "leak_photo" ? "photo" : "low water";
+      setPopups((p) => [
+        ...p.slice(-2),
+        { id, text: `${r.simTime ?? ""} · Phone ${what} at ${r.sectorId} · ${ai}`, kind },
+      ]);
+      setTimeout(() => setPopups((p) => p.filter((x) => x.id !== id)), 4000);
+    }
+  }, []);
+
   const apply = useCallback(
     (next: RunStateView) => {
       absorbEvents(next);
+      absorbReports(next);
       setState(next);
     },
-    [absorbEvents],
+    [absorbEvents, absorbReports],
   );
 
   // The run id lives in the URL (?run=) and localStorage, so a reload resumes the SAME run. Only the
@@ -480,13 +511,24 @@ export function CommandCentre(): JSX.Element {
         <CityView
           sectorStatus={sectors}
           incidents={state.incidents}
+          reports={state.recentReports}
           crew={crew}
           supplyOn={state.supplyOn}
           xray={xray}
           viewBox={viewBox}
           onSelectSector={selectSector}
           onHoverSector={setHover}
+          onSelectReport={setSelectedReport}
         />
+
+        {selectedReport && (
+          <ReportPanel
+            runId={runId}
+            code={code}
+            report={state.recentReports.find((r) => r.reportId === selectedReport) ?? null}
+            onClose={() => setSelectedReport(null)}
+          />
+        )}
 
         {showBriefing && <MissionBriefing onStart={() => setShowBriefing(false)} />}
         {dayOver && (
@@ -781,6 +823,67 @@ function SectorTooltip({
     <div className={styles.tooltip} style={{ top: 44, left: 12 }}>
       {sectorId}: in {litres(r.inflowLitres)} · used {litres(r.usedLitres)} · unaccounted{" "}
       {Math.round(r.lossRatio * 100)}% (usual {Math.round(r.baselineRatio * 100)}%)
+    </div>
+  );
+}
+
+function ReportPanel({
+  runId,
+  code,
+  report,
+  onClose,
+}: {
+  runId: string;
+  code: string;
+  report: RecentReport | null;
+  onClose: () => void;
+}): JSX.Element | null {
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const reportId = report?.reportId ?? null;
+  const isPhoto = report?.type === "leak_photo";
+  useEffect(() => {
+    if (!reportId || !isPhoto) return;
+    let cancelled = false;
+    getReportPhotoUrl(runId, reportId, code)
+      .then((r) => {
+        if (!cancelled) setPhotoUrl(r.url);
+      })
+      .catch(() => {
+        /* no photo (e.g. local dev); the panel just omits it */
+      });
+    return () => {
+      cancelled = true;
+      setPhotoUrl(null);
+    };
+  }, [runId, code, reportId, isPhoto]);
+
+  if (!report) return null;
+  const ai =
+    report.label && report.label !== "self_reported"
+      ? `${labelWord(report.label)}${report.confidence ? ` · ${Math.round(report.confidence * 100)}% sure` : ""}`
+      : "self-reported";
+  return (
+    <div className={styles.tooltip} style={{ top: 44, right: 12, left: "auto", maxWidth: 220 }}>
+      <div>
+        <strong>{report.code}</strong>
+      </div>
+      <div className={styles.why}>
+        {report.source === "simulated" ? "simulated report" : "phone report"} · {report.sectorId}
+      </div>
+      <div className={styles.why}>AI: {ai}</div>
+      <div className={styles.why}>
+        {report.simTime ?? ""} · {report.status}
+      </div>
+      {photoUrl && (
+        <img
+          src={photoUrl}
+          alt="Citizen photo"
+          style={{ width: "100%", marginTop: 6, border: "1px solid var(--rule)" }}
+        />
+      )}
+      <PixelButton variant="secondary" onClick={onClose}>
+        Close
+      </PixelButton>
     </div>
   );
 }

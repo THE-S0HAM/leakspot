@@ -53,6 +53,7 @@ function snapshot(): RunStateView {
     recentEvents: [
       { at: { day: 15, slotIndex: slot, label: "07:00" }, label: "C3 confirmed", kind: "sector" },
     ],
+    recentReports: [],
   };
 }
 

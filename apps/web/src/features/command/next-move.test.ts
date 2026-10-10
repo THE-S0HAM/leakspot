@@ -15,6 +15,7 @@ function baseState(over: Partial<RunStateView> = {}): RunStateView {
     sectors: [],
     incidents: [],
     recentEvents: [],
+    recentReports: [],
     ...over,
   };
 }

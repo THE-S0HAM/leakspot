@@ -80,6 +80,14 @@ export function getTicket(runId: string, reportId: string): Promise<TicketView> 
   return call("GET", `/runs/${runId}/reports/${reportId}`);
 }
 
+export function getReportPhotoUrl(
+  runId: string,
+  reportId: string,
+  code: string,
+): Promise<{ url: string }> {
+  return call("GET", `/runs/${runId}/reports/${reportId}/photo`, { code });
+}
+
 // ---- command (require the access code) ----
 export function checkCode(code: string): Promise<{ ok: boolean }> {
   return call("POST", `/auth/check`, { body: { code } });

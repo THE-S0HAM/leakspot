@@ -69,6 +69,7 @@ function state(): RunStateView {
       },
       { at: { day: 15, slotIndex: 3, label: "06:45" }, label: "C3 suspected", kind: "sector" },
     ],
+    recentReports: [],
   };
 }
 
