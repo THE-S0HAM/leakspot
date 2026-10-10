@@ -26,6 +26,9 @@
   /* Type scale (rem, 16px base, ~1.25 ratio) */
   --font-display: "Pixelify Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Numbers, ids, clocks and money/litre values NEVER use the pixel display face (its digits misread:
+     "C3"→"03", "538.6"→"838.6"). Always JetBrains Mono with tabular figures. */
+  --font-num: "JetBrains Mono", ui-monospace, monospace;
   --t-0: 0.8rem;
   --t-1: 1rem;
   --t-2: 1.25rem;

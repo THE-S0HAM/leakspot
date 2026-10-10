@@ -18,18 +18,20 @@
 }
 
 .label {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   fill: var(--ink);
   paint-order: stroke;
   stroke: var(--night);
   stroke-width: 3px;
 }
 
-/* Floating pixel status badge above a sector. */
+/* Floating status badge above a sector (contains the sector id like "C3" — mono, not the pixel face). */
 .badge {
-  font-family: var(--font-display);
-  font-size: 12px;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
   font-weight: 700;
   paint-order: stroke;
   stroke: var(--night);
@@ -177,7 +179,9 @@
 }
 
 .floatText {
-  font-family: var(--font-display);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
   font-weight: 700;
   fill: var(--neem);
   animation: rise 1.8s ease-out forwards;

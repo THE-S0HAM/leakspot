@@ -71,14 +71,16 @@
   flex: 1;
 }
 .clock {
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
-  color: var(--ink-dim);
+  font-size: var(--t-1); /* ≥ 14px */
+  color: var(--ink);
 }
 .hudStat {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--t-0);
+  font-size: var(--t-1); /* ≥ 14px: HUD stats must be readable */
 }
 
 .healthBar {
@@ -99,7 +101,11 @@
     background 0.4s;
 }
 .healthNum {
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 3ch;
+  text-align: right;
 }
 
 .mapArea {
@@ -208,11 +214,13 @@
 }
 .score {
   margin-left: auto;
-  font-family: var(--font-display);
-  font-size: var(--t-2);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: var(--t-3);
 }
 .why {
-  font-size: var(--t-0);
+  font-size: var(--t-1); /* ≥ 14px panel text */
   color: var(--ink-dim);
 }
 .scoreBars {
@@ -338,7 +346,10 @@
 }
 .reportNum {
   text-align: right;
-  font-family: var(--font-display);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: var(--t-2);
   color: var(--jal);
 }
 
@@ -424,14 +435,16 @@
 .counterfactual {
   display: grid;
   gap: 10px;
-  font-size: var(--t-0);
+  font-size: var(--t-1); /* ≥ 14px panel text */
 }
 .slider {
   display: grid;
   gap: 4px;
 }
 .cfTotal {
-  font-family: var(--font-display);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
   font-size: var(--t-3);
   color: var(--jal);
 }

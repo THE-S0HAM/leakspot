@@ -43,6 +43,14 @@ a {
   color: var(--accent);
 }
 
+/* Any value with digits (ids, scores, clocks, litres, money). Readable mono with tabular figures,
+   never the pixel display face. Use on spans inside headings too, so a heading can mix words + numbers. */
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
 :focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
