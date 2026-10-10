@@ -66,3 +66,17 @@ task by running each tool's JS entry with `process.execPath`); the checkpoint-lo
 - Group 6 (translations + Result card): PipelineLog stage text and the AI label are translated in en/हिंदी/मराठी (pipeline stages, labels small drip/major leak/burst/sewage/not a leak/unclear/self-reported, repair-logged). Citizen pipeline no longer shows a raw incident id — sector only. After "done" a Result card renders the local photo thumbnail, "AI: <label> · NN% sure", "New report in C3" or "Added to the C3 leak (N reports)", "Priority: P / 100", the ticket code and [See my ticket]. The classify response now carries `mergedCount` and `incident.sectorId`/`incident.priority` so the card needs no extra fetch. Verified live through the Vite proxy: a leak_photo → FakeVision burst 95%, incident C3 priority 49, mergedCount 0.
 - Step 4 (shell robustness): per-route `ErrorBoundary` ("Something broke on this screen" + Reload that keeps the URL/run id), a catch-all 404 page in the Monsoon Night block style, and a `useHead` hook setting a per-route `<title>`, meta description and theme-color (Monsoon Night for landing/command, Neel Limewash for citizen). index.html gained an original pixel-droplet SVG favicon, theme-color and a default description.
 - Verify: typecheck + lint clean, 192 unit tests pass, `npm run build` OK (web 468 KB js / 147 KB gz; favicon copied to dist), health-bar e2e green.
+
+## 2026-10-11 ~02:00 IST: Stage 1-3D PART 1a–1d (Claude Code takes over from Kiro)
+- 1a committed as Kiro left it (all checks green, health-bar e2e passes).
+- Screenshot check (`npm run shots -w @leakspot/web`, real GPU via ANGLE) found the city rendering black:
+  instanced meshes had `vertexColors` with no colour attribute. Fixed, plus physical-unit light levels,
+  Indian-city detail (limewash houses with parapets/balconies, apartment window grids + lift rooms, shop
+  awnings, gardens), one draw call per layer (`InstancedBoxes`) and a camera fitted to the canvas.
+- 1b: connected pipe network down to a lateral per building, X-ray fade + flow, suspect rings/drips,
+  fountains/puddles, crew truck on the street grid, verified burst, report pins.
+- 1c: traffic, traffic lights, citizens, street lamps (all seeded decoration).
+- 1d: landing hero in spectator mode (60 s day cycle, quarter-turn every 20 s).
+- Not done: puddle grows per real-time second, not per slot; crew route is an L-path over the grid,
+  not a graph shortest path; cars slow near junctions but do not stop at red. City3D chunk 972 KB
+  (260 KB gzip), lazy-loaded, so the citizen bundle is unchanged.
