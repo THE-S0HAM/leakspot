@@ -15,6 +15,7 @@ import {
   SYSTEM_PROMPT,
   buildConverseInput,
   createBedrockVisionAdapter,
+  extractFirstJsonObject,
   parseVisionReply,
   type BedrockModelId,
 } from "./bedrock-vision-adapter";
@@ -175,16 +176,17 @@ describe("createBedrockVisionAdapter successful replies", () => {
     expect(callCount()).toBe(1);
   });
 
-  it("retries a reply with prose around the object and returns the valid retry", async () => {
+  it("accepts a reply with prose around the object on the first call (no retry needed)", async () => {
+    // The parser now extracts the first {...} object, so prose/reasoning around it is tolerated and
+    // does not force a retry (the retry path is covered below by a genuinely invalid reply).
     mock
       .on(ConverseCommand)
-      .resolvesOnce(reply(`Here is my answer: ${JSON.stringify(VALID_VALUE)} Hope that helps.`))
-      .resolves(reply(JSON.stringify(VALID_VALUE)));
+      .resolves(reply(`Here is my answer: ${JSON.stringify(VALID_VALUE)} Hope that helps.`));
 
     const result = await adapterFor().classify(makeJpeg());
 
     expect(result).toStrictEqual({ ok: true, value: VALID_VALUE });
-    expect(callCount()).toBe(2);
+    expect(callCount()).toBe(1);
   });
 
   it("drops fields other than the four from a valid reply", async () => {
@@ -323,8 +325,56 @@ describe("parseVisionReply", () => {
     expect(parseVisionReply(JSON.stringify(value))).toStrictEqual(value);
   });
 
-  it.each(["", "[]", "null"])("returns null for the reply %j", (text) => {
-    expect(parseVisionReply(text)).toBeNull();
+  it.each(["", "[]", "null", "no json here", "{ unbalanced", "}{"])(
+    "returns null for the reply %j",
+    (text) => {
+      expect(parseVisionReply(text)).toBeNull();
+    },
+  );
+});
+
+describe("parseVisionReply tolerates messy model replies (first JSON object wins)", () => {
+  const json = JSON.stringify(VALID_VALUE);
+
+  it("extracts JSON from a ```json code fence", () => {
+    expect(parseVisionReply("```json\n" + json + "\n```")).toStrictEqual(VALID_VALUE);
+  });
+
+  it("extracts JSON from a bare ``` code fence", () => {
+    expect(parseVisionReply("```\n" + json + "\n```")).toStrictEqual(VALID_VALUE);
+  });
+
+  it("ignores leading prose before the object", () => {
+    expect(parseVisionReply("Here is my answer:\n" + json)).toStrictEqual(VALID_VALUE);
+  });
+
+  it("ignores trailing prose after the object", () => {
+    expect(parseVisionReply(json + "\n\nLet me know if you need more.")).toStrictEqual(VALID_VALUE);
+  });
+
+  it("ignores a reasoning block before the object", () => {
+    const reply = "<thinking>The water is gushing fast, so this is a burst.</thinking>\n" + json;
+    expect(parseVisionReply(reply)).toStrictEqual(VALID_VALUE);
+  });
+
+  it("handles braces inside the reason string", () => {
+    const value = { ...VALID_VALUE, reason: "flow near {gate} valve" };
+    expect(parseVisionReply("noise " + JSON.stringify(value) + " trailing")).toStrictEqual(value);
+  });
+
+  it("takes the FIRST object when several are present", () => {
+    const second = JSON.stringify({ ...VALID_VALUE, label: "minor_drip" });
+    expect(parseVisionReply(json + "\n" + second)?.label).toBe("major_leak");
+  });
+});
+
+describe("extractFirstJsonObject", () => {
+  it("returns the first balanced object and null when none/unbalanced", () => {
+    expect(extractFirstJsonObject('prefix {"a":1} suffix')).toBe('{"a":1}');
+    expect(extractFirstJsonObject('{"a":{"b":2}} tail')).toBe('{"a":{"b":2}}');
+    expect(extractFirstJsonObject('{"s":"a}b"} x')).toBe('{"s":"a}b"}');
+    expect(extractFirstJsonObject("no braces")).toBeNull();
+    expect(extractFirstJsonObject("{ not closed")).toBeNull();
   });
 });
 

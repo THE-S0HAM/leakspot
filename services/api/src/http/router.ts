@@ -448,6 +448,7 @@ async function classifyReport(
   let input: ReportInput;
   let label = "self_reported";
   let confidence = 0;
+  let fallbackReason: string | undefined;
 
   if (pending.type === "leak_photo") {
     const selfChoice = pending.selfChoice === "dripping" ? "dripping" : "flowing";
@@ -464,6 +465,7 @@ async function classifyReport(
     };
     label = resolved.label;
     confidence = resolved.confidence;
+    fallbackReason = resolved.fallbackReason;
   } else {
     input = {
       id: reportId,
@@ -490,6 +492,7 @@ async function classifyReport(
       reportId,
       label,
       confidence,
+      ...(fallbackReason ? { fallbackReason } : {}),
       rejected: record?.rejected ?? false,
       stages: stagesFor(record?.rejected ?? false, record?.selfReported ?? false),
       incident: incident

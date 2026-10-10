@@ -51,6 +51,7 @@ type ClassifyResponse = {
   label: string;
   confidence: number;
   rejected: boolean;
+  fallbackReason?: string;
   incident?: { id: string; status: string; verdict: string };
 };
 
@@ -168,12 +169,14 @@ async function checkBedrock(photoPath: string): Promise<void> {
 
   const selfReported = classified.label === "self_reported" || classified.confidence === 0;
   console.log(
-    `smoke: label=${classified.label} confidence=${classified.confidence} selfReported=${selfReported}`,
+    `smoke: label=${classified.label} confidence=${classified.confidence} selfReported=${selfReported}` +
+      (classified.fallbackReason ? ` fallbackReason=${classified.fallbackReason}` : ""),
   );
   if (selfReported) {
     throw new Error(
-      "smoke: classification fell back to self-reported — Bedrock is NOT working on AWS. " +
-        "Check the model id, the inference-profile ARN and the Lambda's bedrock:InvokeModel policy.",
+      `smoke: classification fell back to self-reported (reason: ${classified.fallbackReason ?? "unknown"}) — ` +
+        "Bedrock is NOT working on AWS. Check the model id, the inference-profile ARN and the " +
+        "Lambda's bedrock:InvokeModel policy, and whether the account's daily Bedrock token quota is exhausted.",
     );
   }
   console.log("smoke: Bedrock classified the photo (not a fallback).");

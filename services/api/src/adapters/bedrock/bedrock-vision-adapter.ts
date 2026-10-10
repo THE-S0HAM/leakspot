@@ -75,22 +75,47 @@ const replySchema = z.object({
   reason: z.string(),
 });
 
-// One optional surrounding fence, with or without a `json` tag. The `$` anchor makes the capture run to
-// the last fence, so a second fence or prose after the first one lands inside and fails JSON.parse.
-const SURROUNDING_FENCE = /^```(?:json)?([\s\S]*)```$/i;
+/**
+ * Extract the first balanced {...} JSON object from arbitrary model text. Tolerates markdown code
+ * fences, leading/trailing prose and a reasoning block before the JSON (Nova and others sometimes emit
+ * these despite the "one JSON object only" instruction). Scans for the first "{" and tracks brace depth,
+ * ignoring braces inside strings. Returns the substring or null.
+ */
+export function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
 
 /**
- * Parses a model reply into a VisionValue, or null when it is not exactly one valid JSON object
- * (optionally inside one markdown fence). Extra fields are dropped and `reason` is cut to 120 chars.
+ * Parses a model reply into a VisionValue, or null when no valid object is present. Takes the first
+ * {...} object out of the text (so code fences, prose and reasoning blocks are tolerated), parses it,
+ * and validates with zod. Extra fields are dropped and `reason` is cut to 120 chars.
  */
 export function parseVisionReply(text: string): VisionValue | null {
-  const trimmed = text.trim();
-  const fenced = SURROUNDING_FENCE.exec(trimmed);
-  const body = fenced ? (fenced[1] ?? "").trim() : trimmed;
+  const body = extractFirstJsonObject(text);
+  if (body === null) return null;
 
   let parsed: unknown;
   try {
-    // JSON.parse rejects any prose before or after the object, which is the "no other text" rule.
     parsed = JSON.parse(body);
   } catch {
     return null;
@@ -150,12 +175,20 @@ const CATEGORY_BY_ERROR_NAME: ReadonlyMap<string, VisionFailureCategory> = new M
   ["ThrottlingException", "throttled"],
 ]);
 
-// Builds a fresh result from the error name only, so no request, image bytes or credentials leak out.
+// Builds a fresh result from the error name only, so no request, image bytes or credentials leak out,
+// and logs the category/name/message (never the photo bytes) so a failure is visible in CloudWatch.
 function failureFromError(error: unknown): VisionResult {
-  if (!(error instanceof Error)) return { ok: false, category: "other" };
+  if (!(error instanceof Error)) {
+    console.error("[bedrock-vision] classify failed: category=other (non-Error thrown)");
+    return { ok: false, category: "other" };
+  }
   const name: unknown = error.name;
-  if (typeof name !== "string") return { ok: false, category: "other" };
-  return { ok: false, category: CATEGORY_BY_ERROR_NAME.get(name) ?? "other", errorName: name };
+  const resolvedName = typeof name === "string" ? name : "UnknownError";
+  const category = CATEGORY_BY_ERROR_NAME.get(resolvedName) ?? "other";
+  console.error(
+    `[bedrock-vision] classify failed: category=${category} name=${resolvedName} message=${error.message}`,
+  );
+  return { ok: false, category, errorName: resolvedName };
 }
 
 export type BedrockVisionAdapterOptions = {
@@ -163,6 +196,24 @@ export type BedrockVisionAdapterOptions = {
   client?: BedrockRuntimeClient;
   modelId: BedrockModelId;
 };
+
+export type ProbeResult = { rawText: string; parsed: VisionValue | null };
+
+/**
+ * Diagnostic one-shot Converse that returns the model's raw reply text and the parse result. Used by
+ * scripts/probe-bedrock.ts so the probe never imports @aws-sdk directly (dependency rules). Builds its
+ * own client (optionally for a given region) so it exercises the same request path as the adapter.
+ */
+export async function probeConverse(
+  modelId: BedrockModelId,
+  jpeg: Uint8Array,
+  region = "ap-south-1",
+): Promise<ProbeResult> {
+  const client = new BedrockRuntimeClient({ region });
+  const output = await client.send(new ConverseCommand(buildConverseInput(modelId, jpeg, false)));
+  const rawText = replyText(output) ?? "";
+  return { rawText, parsed: parseVisionReply(rawText) };
+}
 
 /**
  * Creates the VisionPort backed by Bedrock Converse. The client may be injected (tests mock it; the
@@ -192,7 +243,11 @@ export function createBedrockVisionAdapter(options: BedrockVisionAdapterOptions)
       const first = await attempt(jpeg, false);
       if (first !== null) return first;
       const retried = await attempt(jpeg, true);
-      return retried ?? { ok: false, category: "unparseable_response" };
+      if (retried !== null) return retried;
+      console.error(
+        "[bedrock-vision] classify failed: category=unparseable_response (model reply had no valid JSON object after retry)",
+      );
+      return { ok: false, category: "unparseable_response" };
     },
   };
 }

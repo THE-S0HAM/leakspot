@@ -11,6 +11,8 @@ export type ResolvedVision = {
   engineLabel: VisionLabel;
   confidence: number;
   selfReported: boolean;
+  /** why we fell back to self-reported (the vision failure category), if we did. */
+  fallbackReason?: string;
 };
 
 /** Classify a JPEG; on any vision failure, fall back to the citizen's self-choice (confidence 0). */
@@ -34,5 +36,6 @@ export async function resolveVision(
     engineLabel: selfChoice === "dripping" ? "minor_drip" : "major_leak",
     confidence: 0,
     selfReported: true,
+    fallbackReason: result.category,
   };
 }
