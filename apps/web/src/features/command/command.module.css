@@ -212,12 +212,140 @@
   font-size: var(--t-0);
   color: var(--ink-dim);
 }
-.weck {
-  display: flex;
+.scoreBars {
+  display: grid;
+  gap: 3px;
+}
+.scoreBar {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  align-items: center;
   gap: 8px;
   font-size: var(--t-0);
   color: var(--ink-dim);
+}
+.scoreBarLabel {
+  white-space: nowrap;
+}
+.scoreBarTrack {
+  height: 7px;
+  background: var(--cloud-2);
+  border: 1px solid var(--rule);
+}
+.scoreBarFill {
+  display: block;
+  height: 100%;
+  background: var(--jal);
+}
+
+.collapsed {
+  display: block;
+  color: var(--neem);
+  font-size: var(--t-0);
+  padding: 3px 0;
+  border-bottom: 1px solid var(--rule);
   font-variant-numeric: tabular-nums;
+}
+
+/* Next-move bar over the map */
+.nextMove {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(640px, 92%);
+  background: var(--cloud-2);
+  border: 1px solid var(--rule);
+  box-shadow: 0 3px 0 var(--rule);
+  padding: 8px 12px;
+  z-index: 3;
+  font-size: var(--t-0);
+}
+.nextMoveText {
+  flex: 1;
+}
+
+/* Map event pop-ups (separate from the error toast) */
+.popups {
+  position: absolute;
+  right: 10px;
+  top: 56px;
+  display: grid;
+  gap: 6px;
+  z-index: 4;
+  pointer-events: none;
+}
+.popup {
+  background: var(--cloud);
+  border-left: 4px solid var(--jal);
+  padding: 6px 10px;
+  font-size: var(--t-0);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.2s ease-out;
+}
+.popupConfirmed {
+  border-left-color: var(--sindoor);
+}
+.popupVerified {
+  border-left-color: var(--neem);
+}
+
+/* Hover tooltip */
+.tooltip {
+  position: absolute;
+  background: var(--night);
+  border: 1px solid var(--jal);
+  padding: 6px 8px;
+  font-size: var(--t-0);
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Modal panels (mission briefing, day report) */
+.modalWrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 16, 32, 0.72);
+  z-index: 10;
+}
+.modal {
+  background: var(--cloud);
+  border: 1px solid var(--rule);
+  box-shadow: 0 5px 0 var(--rule);
+  padding: 20px;
+  max-width: 420px;
+  display: grid;
+  gap: 12px;
+}
+.modal h2 {
+  font-size: var(--t-3);
+}
+.reportGrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  font-variant-numeric: tabular-nums;
+}
+.reportNum {
+  text-align: right;
+  font-family: var(--font-display);
+  color: var(--jal);
+}
+
+/* Event feed coloured block per type */
+.feedDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  vertical-align: middle;
 }
 .cardActions {
   display: flex;

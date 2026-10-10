@@ -45,6 +45,8 @@ function snapshot(): RunStateView {
         lossRatio: 0.4,
         baselineRatio: 0.15,
         excessLitresPerDay: 180000,
+        inflowLitres: 41250,
+        usedLitres: 30100,
       },
     ],
     incidents,
@@ -129,6 +131,9 @@ describe("Command Centre loop", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Enter/ }));
 
+    // Dismiss the mission briefing.
+    fireEvent.click(await screen.findByRole("button", { name: /^Start$/ }));
+
     // New run loaded → Step past 07:00 (slot 4) so the crew is on duty and C3 is present. Await each
     // step so the async tick state settles before the next click.
     const step = await screen.findByRole("button", { name: /^Step$/ });
@@ -138,10 +143,15 @@ describe("Command Centre loop", () => {
       await waitFor(() => expect(getSlotLabel()).not.toBe(before));
     }
 
-    // C3 card is present; dispatch it (button enabled now the crew is on duty).
-    const dispatch = (await screen.findByRole("button", {
+    // C3 card is present; dispatch it. Both the card and the Next-move bar expose a "Dispatch crew"
+    // button (same handler); click the last one (the card's).
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /Dispatch crew/ }).length).toBeGreaterThan(0),
+    );
+    const dispatches = screen.getAllByRole("button", {
       name: /Dispatch crew/,
-    })) as HTMLButtonElement;
+    }) as HTMLButtonElement[];
+    const dispatch = dispatches[dispatches.length - 1] as HTMLButtonElement;
     await waitFor(() => expect(dispatch.disabled).toBe(false));
     fireEvent.click(dispatch);
 
@@ -149,10 +159,11 @@ describe("Command Centre loop", () => {
     fireEvent.click(step);
     fireEvent.click(step);
 
-    // Mark repaired becomes available on site.
-    const repair = (await screen.findByRole("button", {
+    // Mark repaired becomes available on site (card and possibly the Next-move bar).
+    const repairs = (await screen.findAllByRole("button", {
       name: /Mark repaired/,
-    })) as HTMLButtonElement;
+    })) as HTMLButtonElement[];
+    const repair = repairs[repairs.length - 1] as HTMLButtonElement;
     fireEvent.click(repair);
 
     // Three ticks: verifying 1/2/3 → VERIFIED banner.
@@ -160,8 +171,9 @@ describe("Command Centre loop", () => {
     fireEvent.click(step);
     fireEvent.click(step);
 
+    // Once verified, the card collapses to a green "✓ C3 verified" line in the rail.
     await waitFor(() => {
-      expect(screen.getByText(/Verified by meters/)).toBeTruthy();
+      expect(screen.getByText(/✓ C3 verified/)).toBeTruthy();
     });
   });
 });

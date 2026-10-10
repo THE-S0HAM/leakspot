@@ -41,6 +41,8 @@ export type SectorRuntime = {
   lossRatio: number;
   baselineRatio: number;
   excessLitresPerDay: number;
+  inflowLitres: number;
+  usedLitres: number;
 };
 
 export type RunEvent = { at: SimClock; label: string; kind: string };

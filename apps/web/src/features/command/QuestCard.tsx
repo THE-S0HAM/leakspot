@@ -1,18 +1,26 @@
-// Incident quest card and its state machine: Dispatch (or "Locate & repair" for hidden — both call
-// dispatch) → Crew en route with ETA blocks → Crew on site + Mark repaired (only enabled on site) →
-// Verifying ▮▮▯ → VERIFIED banner. When dispatch isn't allowed the button is disabled with a reason.
+// Incident quest card and its state machine. Big score with four labelled mini-bars (Water lost /
+// Evidence / Critical site / Signals agree, each tooltipped with value + weight). Actions:
+// Dispatch (or "Locate & repair" for hidden — both call dispatch) → en route (ETA blocks) → on site
+// + Mark repaired → Verifying ▮▮▯ → VERIFIED banner. Dispatch disables with a reason when not allowed.
 import type { JSX } from "react";
 import type { IncidentView } from "../../state/view-types";
 import { PixelButton } from "../../ui/PixelButton";
+import { verdictWord } from "../../ui/words";
 import styles from "./command.module.css";
 
 const ARRIVAL_SLOTS = 2;
 const VERIFY_SLOTS = 3;
 
-/** [0, 1, …, n-1] — avoids an unused map arg (eslint args:"all"). */
 function range(n: number): number[] {
   return [...Array(n).keys()];
 }
+
+const SCORE_BARS: { key: "W" | "E" | "C" | "K"; label: string; weight: number }[] = [
+  { key: "W", label: "Water lost", weight: 40 },
+  { key: "E", label: "Evidence", weight: 25 },
+  { key: "C", label: "Critical site", weight: 20 },
+  { key: "K", label: "Signals agree", weight: 15 },
+];
 
 export function QuestCard({
   incident,
@@ -27,9 +35,7 @@ export function QuestCard({
   incident: IncidentView;
   selected: boolean;
   busy: boolean;
-  /** remaining crew ETA slots while this incident is "dispatched" (from state.crew.etaSlots). */
   crewEtaSlots: number;
-  /** non-null → Dispatch is disabled and this reason is shown (e.g. "Crew starts at 07:00"). */
   dispatchDisabledReason: string | null;
   onDispatch: () => void;
   onRepair: () => void;
@@ -40,9 +46,6 @@ export function QuestCard({
   const canDispatch = status === "open" || status === "reopened";
   const enRoute = status === "dispatched";
   const onSite = status === "onsite";
-  const verifying = status === "verifying";
-  const done = status === "verified";
-  const logged = status === "closed_logged";
   const dispatchLabel = incident.kind === "hidden" ? "Locate & repair" : "Dispatch crew";
   const verifyDone = incident.verifyPasses ?? 0;
   const arrived = ARRIVAL_SLOTS - crewEtaSlots;
@@ -57,21 +60,31 @@ export function QuestCard({
         >
           {incident.sectorId}
         </button>
-        <span className={styles.why}>{incident.verdict.replace(/_/g, " ").toLowerCase()}</span>
+        <span className={styles.why}>{verdictWord(incident.verdict)}</span>
         <span className={styles.score}>{s.P}</span>
       </div>
-      {incident.why && <div className={styles.why}>{incident.why}</div>}
-      <div className={styles.weck}>
-        <span>W {s.W.toFixed(2)}</span>
-        <span>E {s.E.toFixed(2)}</span>
-        <span>C {s.C.toFixed(2)}</span>
-        <span>K {s.K.toFixed(2)}</span>
+
+      <div className={styles.scoreBars}>
+        {SCORE_BARS.map((bar) => (
+          <div
+            key={bar.key}
+            className={styles.scoreBar}
+            title={`${bar.label}: ${s[bar.key].toFixed(2)} (weight ${bar.weight})`}
+          >
+            <span className={styles.scoreBarLabel}>{bar.label}</span>
+            <span className={styles.scoreBarTrack}>
+              <span
+                className={styles.scoreBarFill}
+                style={{ width: `${Math.round(s[bar.key] * 100)}%` }}
+              />
+            </span>
+          </div>
+        ))}
       </div>
 
-      {done && <div className={styles.banner}>Verified by meters</div>}
-      {logged && <div className={styles.why}>Repair logged, below meter resolution</div>}
+      {incident.why && <div className={styles.why}>{incident.why}</div>}
 
-      {verifying && (
+      {status === "verifying" && (
         <div className={styles.why}>
           Verifying
           <span
@@ -88,8 +101,8 @@ export function QuestCard({
         </div>
       )}
 
-      {!done && !logged && !verifying && (
-        <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
+      {(canDispatch || enRoute || onSite) && (
+        <div className={styles.cardActions}>
           {(canDispatch || enRoute) && (
             <PixelButton
               onClick={onDispatch}

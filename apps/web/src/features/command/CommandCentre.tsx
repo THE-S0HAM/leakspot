@@ -1,10 +1,10 @@
-// Command Centre: the full command loop over the CityView, laid out as a game HUD (top bar, map centre,
-// right rail with Incidents/Impact tabs, bottom dock). All data from the API. Play ticks every 3 s at
-// the chosen speed (tick count 1/2/4). API errors surface as a toast, never the event feed; the feed
-// shows the engine's recentEvents with sim time.
+// Command Centre: the full command loop over the CityView as a game HUD. Guides the player with a
+// mission briefing, a derived "Next move" bar, map event pop-ups, hover tooltips, a camera that eases
+// to a clicked sector, and a Day report at 20:00. All data from the API; Play ticks every 3 s at the
+// chosen speed. Errors → toast, never the feed.
 
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
-import { FACILITIES, type SectorId } from "@leakspot/core/world";
+import { FACILITIES, SECTOR_BY_ID, type SectorId } from "@leakspot/core/world";
 import {
   ApiCallError,
   createRun,
@@ -16,18 +16,21 @@ import {
 } from "../../api/client";
 import type { RunStateView, SectorStatus } from "../../state/view-types";
 import { CityView, type CrewMarker } from "../../world/CityView";
+import { BASE_VIEWBOX, project, VIEW_H, VIEW_W } from "../../world/iso";
 import { PixelButton } from "../../ui/PixelButton";
 import { SimLabel, healthColor } from "../../ui/StatusBadge";
-import { lakh } from "../../ui/format";
+import { lakh, litres, tankers } from "../../ui/format";
+import { incidentStatusWord, verdictWord } from "../../ui/words";
 import { CodeGate } from "./CodeGate";
 import { QuestCard } from "./QuestCard";
 import { QrJoin } from "./QrJoin";
 import { WithWithout } from "./WithWithout";
+import { nextMove, type NextAction } from "./next-move";
 import styles from "./command.module.css";
 
 const TICK_MS = 3000;
 const DEPOT = FACILITIES.find((f) => f.kind === "depot")?.at ?? { x: 14, z: 102 };
-const CREW_ON_DUTY_SLOT = 4; // 07:00
+const CREW_ON_DUTY_SLOT = 4;
 
 function statusMap(state: RunStateView): Record<SectorId, SectorStatus> {
   const map = {} as Record<SectorId, SectorStatus>;
@@ -35,7 +38,6 @@ function statusMap(state: RunStateView): Record<SectorId, SectorStatus> {
   return map;
 }
 
-/** Place the crew truck between depot and the target incident pin by remaining ETA (2 → 0 slots). */
 function crewMarker(state: RunStateView): CrewMarker {
   const { crew } = state;
   if (crew.status === "idle" || !crew.incidentId) return null;
@@ -51,7 +53,6 @@ function crewMarker(state: RunStateView): CrewMarker {
   };
 }
 
-/** Why Dispatch is disabled for this incident, or null if it's allowed. */
 function dispatchReason(state: RunStateView, incidentId: string): string | null {
   if (state.simClock.slotIndex >= 0 && state.simClock.slotIndex < CREW_ON_DUTY_SLOT) {
     return "Crew starts at 07:00";
@@ -61,6 +62,7 @@ function dispatchReason(state: RunStateView, incidentId: string): string | null 
 }
 
 type Tab = "incidents" | "impact";
+type Popup = { id: number; text: string; kind: "info" | "confirmed" | "verified" };
 
 export function CommandCentre(): JSX.Element {
   const [code, setCode] = useState<string | null>(null);
@@ -72,9 +74,17 @@ export function CommandCentre(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>("incidents");
   const [selected, setSelected] = useState<SectorId | null>(null);
+  const [hover, setHover] = useState<SectorId | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [popups, setPopups] = useState<Popup[]>([]);
+  const [viewBox, setViewBox] = useState(BASE_VIEWBOX);
+  const [showBriefing, setShowBriefing] = useState(true);
+  const [dayOver, setDayOver] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seenEvents = useRef(0);
+  const popupId = useRef(0);
+  const rafRef = useRef<number | null>(null);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -82,26 +92,62 @@ export function CommandCentre(): JSX.Element {
     toastTimer.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
+  // Surface new engine events as map pop-ups (max 3), separate from error toasts.
+  const absorbEvents = useCallback((next: RunStateView) => {
+    const total = next.recentEvents.length;
+    if (seenEvents.current === 0) {
+      seenEvents.current = total;
+      return;
+    }
+    const fresh = next.recentEvents.slice(seenEvents.current);
+    seenEvents.current = total;
+    for (const e of fresh) {
+      if (!/suspected|confirmed|verified|photo|burst/i.test(e.label)) continue;
+      const kind: Popup["kind"] = /verified/i.test(e.label)
+        ? "verified"
+        : /confirmed|burst/i.test(e.label)
+          ? "confirmed"
+          : "info";
+      const id = (popupId.current += 1);
+      setPopups((p) => [...p.slice(-2), { id, text: `${e.at.label} · ${e.label}`, kind }]);
+      setTimeout(() => setPopups((p) => p.filter((x) => x.id !== id)), 4000);
+    }
+  }, []);
+
+  const apply = useCallback(
+    (next: RunStateView) => {
+      absorbEvents(next);
+      setState(next);
+    },
+    [absorbEvents],
+  );
+
   const start = useCallback(async (accessCode: string) => {
     setCode(accessCode);
     const { runId: id } = await createRun(accessCode);
     setRunId(id);
-    setState(await getState(id, accessCode));
+    seenEvents.current = 0;
+    const s = await getState(id, accessCode);
+    seenEvents.current = s.recentEvents.length;
+    setState(s);
   }, []);
 
   const doTick = useCallback(
     async (count = 1) => {
       if (!runId || !code) return;
       try {
-        setState(await tickRun(runId, code, count));
-      } catch {
-        // transient (BUSY / version conflict): the next tick retries
+        apply(await tickRun(runId, code, count));
+      } catch (error) {
+        if (error instanceof ApiCallError && /day is over/i.test(error.message)) {
+          setPlaying(false);
+          setDayOver(true);
+        }
+        // other transient errors: next tick retries
       }
     },
-    [runId, code],
+    [runId, code, apply],
   );
 
-  // Play loop: tick every 3 s while visible, advancing `speed` slots per tick.
   useEffect(() => {
     if (!playing) return;
     timer.current = setInterval(() => {
@@ -116,14 +162,50 @@ export function CommandCentre(): JSX.Element {
     async (fn: () => Promise<RunStateView>) => {
       setBusy(true);
       try {
-        setState(await fn());
+        apply(await fn());
       } catch (error) {
         showToast(error instanceof ApiCallError ? error.message : "Something went wrong");
       } finally {
         setBusy(false);
       }
     },
-    [showToast],
+    [apply, showToast],
+  );
+
+  // Ease the camera to a sector's projected centre (viewBox tween, ~400 ms).
+  const easeTo = useCallback((sectorId: SectorId | null) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const fromParts = (prev: string) =>
+      prev.split(" ").map(Number) as [number, number, number, number];
+    const target: [number, number, number, number] = (() => {
+      if (!sectorId) return BASE_VIEWBOX.split(" ").map(Number) as [number, number, number, number];
+      const c = project(SECTOR_BY_ID[sectorId].centroid.x, SECTOR_BY_ID[sectorId].centroid.z, 0);
+      const w = VIEW_W * 0.5;
+      const h = VIEW_H * 0.5;
+      return [c.sx - w / 2, c.sy - h / 2, w, h];
+    })();
+    setViewBox((prev) => {
+      const from = fromParts(prev);
+      const t0 = performance.now();
+      const DURATION = 400;
+      const stepFrame = (now: number) => {
+        const k = Math.min(1, (now - t0) / DURATION);
+        const e = 1 - Math.pow(1 - k, 3);
+        const cur = from.map((v, i) => v + ((target[i] ?? v) - v) * e);
+        setViewBox(cur.join(" "));
+        if (k < 1) rafRef.current = requestAnimationFrame(stepFrame);
+      };
+      rafRef.current = requestAnimationFrame(stepFrame);
+      return prev;
+    });
+  }, []);
+
+  const selectSector = useCallback(
+    (id: SectorId | null) => {
+      setSelected(id);
+      easeTo(id);
+    },
+    [easeTo],
   );
 
   // Keyboard: Space play/pause, S step, X X-ray.
@@ -148,7 +230,17 @@ export function CommandCentre(): JSX.Element {
 
   const sectors = statusMap(state);
   const incidents = [...state.incidents].sort((a, b) => b.score.P - a.score.P);
+  const active = incidents.filter((i) => i.status !== "verified" && i.status !== "closed_logged");
+  const closed = incidents.filter((i) => i.status === "verified" || i.status === "closed_logged");
   const crew = crewMarker(state);
+  const move = nextMove(state);
+
+  function runAction(a: NextAction): void {
+    if (!runId || !code) return;
+    if (a.kind === "play") setPlaying(true);
+    else if (a.kind === "dispatch") void action(() => dispatchCrew(runId, code, a.incidentId));
+    else void action(() => repairIncident(runId, code, a.incidentId));
+  }
 
   return (
     <div className={styles.shell}>
@@ -168,24 +260,49 @@ export function CommandCentre(): JSX.Element {
               style={{ width: `${state.cityHealth}%`, background: healthColor(state.cityHealth) }}
             />
           </span>
-          <span className={styles.healthNum}>{state.cityHealth}</span>
+          <CountUp className={styles.healthNum} value={state.cityHealth} />
         </span>
-        <span className={styles.hudStat}>Water recovered {lakh(state.waterRecoveredLitres)}</span>
+        <span className={styles.hudStat}>
+          Water recovered <CountUp value={state.waterRecoveredLitres} format={lakh} />
+        </span>
       </header>
 
       <div className={styles.mapArea}>
-        <div className={styles.mapOverlay}>
-          <PixelButton variant="secondary" onClick={() => setXray((v) => !v)}>
-            {xray ? "Hide pipes" : "X-ray"}
-          </PixelButton>
+        <div className={styles.nextMove}>
+          <span className={styles.nextMoveText}>{move.text}</span>
+          {move.action && move.label && (
+            <PixelButton onClick={() => move.action && runAction(move.action)}>
+              {move.label}
+            </PixelButton>
+          )}
         </div>
+
+        <div className={styles.popups}>
+          {popups.map((p) => (
+            <div
+              key={p.id}
+              className={`${styles.popup} ${p.kind === "confirmed" ? styles.popupConfirmed : ""} ${p.kind === "verified" ? styles.popupVerified : ""}`}
+            >
+              {p.text}
+            </div>
+          ))}
+        </div>
+
+        {hover && <SectorTooltip state={state} sectorId={hover} />}
+
         <CityView
           sectorStatus={sectors}
           incidents={state.incidents}
           crew={crew}
+          supplyOn={state.supplyOn}
           xray={xray}
-          onSelectSector={(id) => setSelected(id)}
+          viewBox={viewBox}
+          onSelectSector={selectSector}
+          onHoverSector={setHover}
         />
+
+        {showBriefing && <MissionBriefing onStart={() => setShowBriefing(false)} />}
+        {dayOver && <DayReport state={state} onNewRun={() => window.location.reload()} />}
       </div>
 
       <aside className={styles.rail}>
@@ -207,12 +324,12 @@ export function CommandCentre(): JSX.Element {
           {tab === "incidents" ? (
             <>
               {selected && (
-                <SectorPanel state={state} sectorId={selected} onClose={() => setSelected(null)} />
+                <SectorPanel state={state} sectorId={selected} onClose={() => selectSector(null)} />
               )}
-              {incidents.length === 0 && (
+              {active.length === 0 && closed.length === 0 && (
                 <p className={styles.why}>No incidents yet. Press Play.</p>
               )}
-              {incidents.map((inc) => (
+              {active.map((inc) => (
                 <QuestCard
                   key={inc.id}
                   incident={inc}
@@ -222,8 +339,14 @@ export function CommandCentre(): JSX.Element {
                   dispatchDisabledReason={dispatchReason(state, inc.id)}
                   onDispatch={() => void action(() => dispatchCrew(runId, code, inc.id))}
                   onRepair={() => void action(() => repairIncident(runId, code, inc.id))}
-                  onSelect={() => setSelected(inc.sectorId)}
+                  onSelect={() => selectSector(inc.sectorId)}
                 />
+              ))}
+              {closed.map((inc) => (
+                <span key={inc.id} className={styles.collapsed}>
+                  ✓ {inc.sectorId} {inc.status === "verified" ? "verified" : "logged"}
+                  {inc.recoveredLitresPerDay ? ` · ${lakh(inc.recoveredLitresPerDay)}/day` : ""}
+                </span>
               ))}
               <div className={styles.sectionTitle} style={{ marginTop: 12 }}>
                 Event feed
@@ -231,10 +354,11 @@ export function CommandCentre(): JSX.Element {
               <div className={styles.feed}>
                 {[...state.recentEvents]
                   .reverse()
-                  .slice(0, 12)
+                  .slice(0, 8)
                   .map((e, i) => (
                     <div key={i} className={styles.feedLine}>
-                      {e.at.label} {e.label}
+                      <span className={styles.feedDot} style={{ background: feedColor(e.kind) }} />
+                      {e.at.label} · {e.label}
                     </div>
                   ))}
               </div>
@@ -249,10 +373,14 @@ export function CommandCentre(): JSX.Element {
       </aside>
 
       <footer className={styles.dock}>
-        <PixelButton onClick={() => setPlaying((v) => !v)}>
+        <PixelButton onClick={() => setPlaying((v) => !v)} disabled={dayOver}>
           {playing ? "Pause" : "Play"}
         </PixelButton>
-        <PixelButton variant="secondary" onClick={() => void doTick(speed)} disabled={playing}>
+        <PixelButton
+          variant="secondary"
+          onClick={() => void doTick(speed)}
+          disabled={playing || dayOver}
+        >
           Step
         </PixelButton>
         <span className={styles.speedGroup}>
@@ -274,8 +402,15 @@ export function CommandCentre(): JSX.Element {
         >
           Autopilot {state.autopilot ? "on" : "off"}
         </PixelButton>
-        <PixelButton variant="secondary" onClick={() => setXray((v) => !v)}>
+        <PixelButton
+          variant="secondary"
+          className={xray ? styles.toggleOn : undefined}
+          onClick={() => setXray((v) => !v)}
+        >
           {xray ? "Hide pipes" : "X-ray"}
+        </PixelButton>
+        <PixelButton variant="secondary" onClick={() => selectSector(null)}>
+          Fit city
         </PixelButton>
         <span className={styles.spacer} />
         <span className={styles.why}>Space play · S step · X x-ray</span>
@@ -286,6 +421,104 @@ export function CommandCentre(): JSX.Element {
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+function feedColor(kind: string): string {
+  if (kind === "incident") return "var(--sindoor)";
+  if (kind === "crew") return "var(--neel)";
+  if (kind === "sector") return "var(--haldi)";
+  return "var(--ink-dim)";
+}
+
+function CountUp({
+  value,
+  format,
+  className,
+}: {
+  value: number;
+  format?: (n: number) => string;
+  className?: string;
+}): JSX.Element {
+  const [shown, setShown] = useState(value);
+  const prev = useRef(value);
+  useEffect(() => {
+    const from = prev.current;
+    prev.current = value;
+    if (from === value) return;
+    const t0 = performance.now();
+    const DURATION = 600;
+    let raf = 0;
+    const stepFrame = (now: number): void => {
+      const k = Math.min(1, (now - t0) / DURATION);
+      setShown(Math.round(from + (value - from) * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) raf = requestAnimationFrame(stepFrame);
+    };
+    raf = requestAnimationFrame(stepFrame);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <span className={className}>{format ? format(shown) : shown}</span>;
+}
+
+function MissionBriefing({ onStart }: { onStart: () => void }): JSX.Element {
+  return (
+    <div className={styles.modalWrap}>
+      <div className={styles.modal}>
+        <h2>Your shift</h2>
+        <p>You run Jaldhara&apos;s water for one day.</p>
+        <p>Meters flag losses, citizens send photos, you have one crew.</p>
+        <p>Recover the most water by 20:00.</p>
+        <PixelButton onClick={onStart}>Start</PixelButton>
+      </div>
+    </div>
+  );
+}
+
+function DayReport({
+  state,
+  onNewRun,
+}: {
+  state: RunStateView;
+  onNewRun: () => void;
+}): JSX.Element {
+  const verified = state.incidents.filter((i) => i.status === "verified");
+  const hidden = state.incidents.filter((i) => i.kind === "hidden").length;
+  const recovered = state.waterRecoveredLitres;
+  return (
+    <div className={styles.modalWrap}>
+      <div className={styles.modal}>
+        <h2>Day report</h2>
+        <SimLabel />
+        <div className={styles.reportGrid}>
+          <span>Incidents verified</span>
+          <span className={styles.reportNum}>{verified.length}</span>
+          <span>Water recovered</span>
+          <span className={styles.reportNum}>{lakh(recovered)}/day</span>
+          <span>Tanker-loads saved / month</span>
+          <span className={styles.reportNum}>{tankers(recovered * 30)}</span>
+          <span>Hidden leaks found</span>
+          <span className={styles.reportNum}>{hidden}</span>
+        </div>
+        <PixelButton onClick={onNewRun}>New run</PixelButton>
+      </div>
+    </div>
+  );
+}
+
+function SectorTooltip({
+  state,
+  sectorId,
+}: {
+  state: RunStateView;
+  sectorId: SectorId;
+}): JSX.Element | null {
+  const r = state.sectors.find((s) => s.id === sectorId);
+  if (!r) return null;
+  return (
+    <div className={styles.tooltip} style={{ top: 44, left: 12 }}>
+      {sectorId}: in {litres(r.inflowLitres)} · used {litres(r.usedLitres)} · unaccounted{" "}
+      {Math.round(r.lossRatio * 100)}% (usual {Math.round(r.baselineRatio * 100)}%)
     </div>
   );
 }
@@ -306,7 +539,7 @@ function SectorPanel({
   const usedPct = Math.max(0, Math.min(100, (1 - loss) * 100));
   const lostPct = Math.max(0, Math.min(100, loss * 100));
   return (
-    <div className={styles.card} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.card}>
       <div className={styles.cardTop}>
         <strong>{sectorId}</strong>
         <span className={styles.spacer} />
@@ -315,7 +548,8 @@ function SectorPanel({
         </PixelButton>
       </div>
       <div className={styles.why}>
-        Unaccounted {Math.round(loss * 100)}% (usual {Math.round(baseline * 100)}%)
+        In {litres(runtime?.inflowLitres ?? 0)} · used {litres(runtime?.usedLitres ?? 0)} ·
+        unaccounted {Math.round(loss * 100)}% (usual {Math.round(baseline * 100)}%)
       </div>
       <div className={styles.balanceBar} aria-label="Water balance: used vs unaccounted">
         <span className={styles.balanceUsed} style={{ width: `${usedPct}%` }} />
@@ -327,7 +561,7 @@ function SectorPanel({
       ) : (
         sectorIncidents.map((i) => (
           <div key={i.id} className={styles.why}>
-            {i.verdict.replace(/_/g, " ").toLowerCase()} · P {i.score.P} · {i.status}
+            {verdictWord(i.verdict)} · P {i.score.P} · {incidentStatusWord(i.status)}
           </div>
         ))
       )}
