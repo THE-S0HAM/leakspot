@@ -7,5 +7,5 @@ import { LeakSpotStack } from "../lib/leakspot-stack";
 
 const app = new App();
 new LeakSpotStack(app, "LeakSpot", {
-  env: { account: "753036487793", region: "ap-south-1" },
+  env: { account: "838814606498", region: "ap-south-1" },
 });

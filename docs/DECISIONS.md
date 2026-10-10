@@ -191,3 +191,18 @@ Consequences: supersedes ADR-001 (OAC + session + x-amz-content-sha256), ADR-003
 ADR-010 (scheduler-driven showcase) for the remainder of this build; relaxes the DynamoDB capacity of
 ADR-006 to 25/25. CP0 is marked PARTIAL and the checkpoint gates no longer apply. See the steering file
 for the authoritative list.
+
+## ADR-016: Move to account 838814606498 (profile Dev-AWSTW); DynamoDB on-demand
+Date: 2026-10-10 · Status: accepted
+Context: the original account 753036487793 hit a new-account daily Bedrock token quota (ADR-015 debugging
+confirmed ThrottlingException "Too many tokens per day" on both Nova profiles); it resets after the
+deadline. A second account, 838814606498 (profile Dev-AWSTW, region ap-south-1), is bootstrapped and has
+a working Bedrock test.
+Decision: move the whole project to 838814606498. `infra/bin/leakspot.ts` pins the new account; every
+script reads the profile from one place (`scripts/aws-env.mjs`: env `LEAKSPOT_AWS_PROFILE`, default
+`Dev-AWSTW`). Bedrock IAM ARNs are built from `Stack.of(this).account`, never a literal. The DynamoDB
+table switches from PROVISIONED 25/25 to PAY_PER_REQUEST (on-demand), because this account may already
+use its free provisioned-capacity allowance elsewhere and our request volume is tiny; still one table,
+no GSI/stream/PITR. Supersedes the account/profile in ADR-001/002/011 and the provisioned mode in ADR-006.
+Consequences: deploys and probes target the new account via Dev-AWSTW. On-demand DynamoDB is billed per
+request (fractions of a cent at our volume) rather than from the always-free provisioned tier.

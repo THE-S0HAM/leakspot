@@ -1,11 +1,13 @@
-// Probe the Bedrock vision path locally with the hackthon-dev profile, using the SAME adapter code the
-// Lambda uses (via probeConverse), so a local run reproduces production behaviour. Prints the model's
-// raw reply text and the parse result for one JPEG. Never prints the photo bytes.
+// Probe the Bedrock vision path locally with the AWS profile from scripts/aws-env.mjs
+// (LEAKSPOT_AWS_PROFILE, default Dev-AWSTW), using the SAME adapter code the Lambda uses (via
+// probeConverse), so a local run reproduces production behaviour. Prints the model's raw reply text
+// and the parse result for one JPEG. Never prints the photo bytes.
 //
 // Usage: npx tsx scripts/probe-bedrock.ts <photo.jpg> [--model <modelId>]
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { AWS_PROFILE, AWS_REGION } from "./aws-env.mjs";
 import {
   probeConverse,
   type BedrockModelId,
@@ -15,8 +17,8 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
 const PRIMARY: BedrockModelId = "global.amazon.nova-2-lite-v1:0";
 const FALLBACK: BedrockModelId = "apac.amazon.nova-lite-v1:0";
-const REGION = "ap-south-1";
-const PROFILE = "hackthon-dev";
+const REGION = AWS_REGION;
+const PROFILE = AWS_PROFILE;
 
 function parseArgs(argv: readonly string[]): { photo?: string; model: BedrockModelId } {
   const args = argv.slice(2);

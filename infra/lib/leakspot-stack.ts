@@ -54,9 +54,9 @@ export class LeakSpotStack extends Stack {
     const table = new Table(this, "Table", {
       partitionKey: { name: "pk", type: AttributeType.STRING },
       sortKey: { name: "sk", type: AttributeType.STRING },
-      billingMode: BillingMode.PROVISIONED,
-      readCapacity: 25,
-      writeCapacity: 25,
+      // PAY_PER_REQUEST: this account may already use its free provisioned capacity elsewhere, and our
+      // request volume is tiny (ADR-016). No GSI/stream/PITR.
+      billingMode: BillingMode.PAY_PER_REQUEST,
       timeToLiveAttribute: "expiresAt",
       removalPolicy: RemovalPolicy.DESTROY,
     });

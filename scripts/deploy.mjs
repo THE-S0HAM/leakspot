@@ -1,10 +1,11 @@
-// Deploy runner: builds everything (type-check + web bundle) then runs `cdk deploy` with the
-// hackthon-dev profile. CDK reads .env.deploy at synth to compute COMMAND_CODE_SHA256; this
-// script never reads or prints that file. Prints the SiteUrl output on success.
+// Deploy runner: builds everything (type-check + web bundle) then runs `cdk deploy` with the AWS
+// profile from scripts/aws-env.mjs (LEAKSPOT_AWS_PROFILE, default Dev-AWSTW). CDK reads .env.deploy at
+// synth to compute COMMAND_CODE_SHA256; this script never reads or prints that file. Prints SiteUrl.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { AWS_PROFILE } from "./aws-env.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const infraDir = path.join(rootDir, "infra");
@@ -57,7 +58,7 @@ run(
     "deploy",
     "LeakSpot",
     "--profile",
-    "hackthon-dev",
+    AWS_PROFILE,
     "--require-approval",
     "broadening",
     "--outputs-file",

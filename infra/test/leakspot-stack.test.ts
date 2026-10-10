@@ -9,10 +9,12 @@ import { Match, Template } from "aws-cdk-lib/assertions";
 import { describe, expect, it } from "vitest";
 import { LeakSpotStack } from "../lib/leakspot-stack";
 
+const ACCOUNT = "838814606498";
+
 function synth(): Template {
   const app = new App();
   const stack = new LeakSpotStack(app, "LeakSpot", {
-    env: { account: "753036487793", region: "ap-south-1" },
+    env: { account: ACCOUNT, region: "ap-south-1" },
   });
   return Template.fromStack(stack);
 }
@@ -21,18 +23,18 @@ describe("LeakSpotStack", () => {
   it("pins the stack to the LeakSpot account and ap-south-1 region", () => {
     const app = new App();
     const stack = new LeakSpotStack(app, "LeakSpot", {
-      env: { account: "753036487793", region: "ap-south-1" },
+      env: { account: ACCOUNT, region: "ap-south-1" },
     });
-    expect(stack.account).toBe("753036487793");
+    expect(stack.account).toBe(ACCOUNT);
     expect(stack.region).toBe("ap-south-1");
   });
 
-  it("creates one provisioned DynamoDB table at 25/25 with a TTL and no stream", () => {
+  it("creates one on-demand DynamoDB table with a TTL and no stream", () => {
     const template = synth();
     template.resourceCountIs("AWS::DynamoDB::Table", 1);
     template.hasResourceProperties("AWS::DynamoDB::Table", {
-      BillingMode: Match.absent(),
-      ProvisionedThroughput: { ReadCapacityUnits: 25, WriteCapacityUnits: 25 },
+      BillingMode: "PAY_PER_REQUEST",
+      ProvisionedThroughput: Match.absent(),
       TimeToLiveSpecification: { AttributeName: "expiresAt", Enabled: true },
     });
   });
