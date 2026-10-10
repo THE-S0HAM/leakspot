@@ -5,7 +5,7 @@
 // drei <Html> labels for non-normal / hovered / selected sectors. Water, crew and effects are PART 1b.
 
 import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Html, MapControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { FACILITIES, RESERVOIR, SECTORS, WORLD_BOUNDS, type SectorId } from "@leakspot/core/world";
@@ -70,14 +70,28 @@ function IsoCamera({ rotationStep, fitKey }: { rotationStep: number; fitKey: num
     setZoom(camera, fitZoom(size.width, size.height));
   }, [camera, size.width, size.height, fitKey]);
   const target = useMemo(() => new THREE.Vector3(CX, 0, CZ), []);
-  useEffect(() => {
-    // Orthographic iso: look down from a fixed quarter angle, rotated in 90° steps around the target.
-    const angle = (rotationStep * Math.PI) / 2 + Math.PI / 4;
+  // Orthographic iso: look down from a fixed quarter angle, rotated in 90° steps around the city
+  // centre, animated over 300 ms (instant with reduced motion).
+  const goal = (rotationStep * Math.PI) / 2 + Math.PI / 4;
+  const angle = useRef<number | null>(null);
+  useFrame((state, dt) => {
+    if (document.hidden) return;
+    const cur = angle.current;
+    if (cur !== null && Math.abs(cur - goal) < 1e-4) return;
+    const speed = Math.PI / 2 / 0.3;
+    const next =
+      cur === null || prefersReducedMotion
+        ? goal
+        : cur + Math.sign(goal - cur) * Math.min(Math.abs(goal - cur), speed * dt);
+    angle.current = next;
     const dist = 150;
-    camera.position.set(target.x + Math.cos(angle) * dist, 130, target.z + Math.sin(angle) * dist);
-    camera.lookAt(target);
-    camera.updateProjectionMatrix();
-  }, [camera, rotationStep, target]);
+    state.camera.position.set(
+      target.x + Math.cos(next) * dist,
+      130,
+      target.z + Math.sin(next) * dist,
+    );
+    state.camera.lookAt(target);
+  });
   return null;
 }
 
@@ -467,6 +481,29 @@ function SceneLighting({
   );
 }
 
+// ---------- spectator cycle ----------
+
+const DAY_START = 5 * 60 + 45;
+const DAY_LEN = 14 * 60;
+
+function useSpectatorCycle(on: boolean): string | null {
+  const [mins, setMins] = useState<number | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    const t0 = performance.now();
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      const k = ((performance.now() - t0) / 60_000) % 1;
+      setMins(Math.round(DAY_START + 60 + k * DAY_LEN) % (24 * 60));
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [on]);
+  if (!on || mins === null) return null;
+  const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+  const mm = String(mins % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 // ---------- the component ----------
 
 export type City3DProps = CityViewProps & {
@@ -496,7 +533,10 @@ export function City3D(props: City3DProps): JSX.Element {
   const [rotationStep, setRotationStep] = useState(0);
   const fitKey = props.fitKey ?? 0;
 
-  const label = simClock?.label;
+  // Spectator (landing): the sky cycles through the day every 60 s and the city makes a slow
+  // quarter-turn every 20 s. Reduced motion keeps a still mid-morning.
+  const spectatorLabel = useSpectatorCycle(spectator && !prefersReducedMotion);
+  const label = spectatorLabel ?? simClock?.label;
   const sky = useMemo(() => skyFor(label), [label]);
   const glow = windowsGlow(label);
 
@@ -515,6 +555,13 @@ export function City3D(props: City3DProps): JSX.Element {
     setSelected(id);
     onSelectSector?.(id);
   };
+
+  // Spectator: a slow quarter-turn every 20 s.
+  useEffect(() => {
+    if (!spectator || prefersReducedMotion) return;
+    const id = window.setInterval(() => setRotationStep((r) => r + 1), 20_000);
+    return () => window.clearInterval(id);
+  }, [spectator]);
 
   // Q/E rotate in 90° steps.
   useEffect(() => {
@@ -542,6 +589,7 @@ export function City3D(props: City3DProps): JSX.Element {
         <IsoCamera rotationStep={rotationStep} fitKey={fitKey} />
         <MapControls
           makeDefault
+          enabled={!spectator}
           enableRotate={false}
           minZoom={1.5}
           maxZoom={24}

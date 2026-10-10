@@ -1,5 +1,5 @@
-// Landing page (Monsoon Night, one viewport on desktop). The city is the hero — CityView in spectator
-// mode (no incidents, no labels, pipes flowing). Pitch, two buttons, a 3-step strip, and a "Built on
+// Landing page (Monsoon Night, one viewport on desktop). The city is the hero — City3D in spectator
+// mode (no labels, sky cycling through a day every 60 s, a quarter-turn every 20 s). Pitch, two buttons, a 3-step strip, and a "Built on
 // AWS" row. No fake live ticker and no invented numbers.
 import { useMemo, type JSX } from "react";
 import { Link } from "react-router";
@@ -11,9 +11,9 @@ import { SimLabel } from "../../ui/StatusBadge";
 import styles from "./landing.module.css";
 
 const STEPS = [
-  { icon: "📟", text: "Meters notice" },
-  { icon: "📷", text: "Citizens confirm" },
-  { icon: "🔧", text: "Crew fixes, meters verify" },
+  { icon: "1", text: "Meters notice" },
+  { icon: "2", text: "Citizens confirm" },
+  { icon: "3", text: "Crew fixes, meters verify" },
 ];
 
 const AWS = ["CloudFront", "Lambda", "DynamoDB", "S3", "Amazon Bedrock (Nova 2 Lite)", "CDK"];
