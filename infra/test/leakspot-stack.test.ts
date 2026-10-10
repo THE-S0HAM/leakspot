@@ -51,12 +51,12 @@ describe("LeakSpotStack", () => {
     }
   });
 
-  it("runs the API Lambda on arm64 nodejs22 with a 15 s timeout", () => {
+  it("runs the API Lambda on arm64 nodejs22 with 1024 MB and a 15 s timeout", () => {
     const template = synth();
     template.hasResourceProperties("AWS::Lambda::Function", {
       Runtime: "nodejs22.x",
       Architectures: ["arm64"],
-      MemorySize: 512,
+      MemorySize: 1024,
       Timeout: 15,
     });
   });

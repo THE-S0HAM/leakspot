@@ -100,9 +100,22 @@ export function createRun(seed = 42): CreateRunResult {
   return { state, context };
 }
 
-/** Rebuild the pure, seed-derived context on a fresh Lambda. Holds no runtime state (see RunContext). */
+/** Rebuild the pure, seed-derived context. Holds no runtime state (see RunContext). */
 export function rebuildContext(seed: number): RunContext {
   return { seed, history: buildHistoryModel(seed), leaks: leakDefs() };
+}
+
+// Module-level cache so a warm Lambda rebuilds the heavy history model once per seed, not per request.
+// The context is pure seed-derived data, so caching it is always safe (never carries runtime state).
+const contextCache = new Map<number, RunContext>();
+
+/** Get the seed-derived context, building and caching it on first use (per seed). */
+export function getContext(seed: number): RunContext {
+  const cached = contextCache.get(seed);
+  if (cached) return cached;
+  const context = rebuildContext(seed);
+  contextCache.set(seed, context);
+  return context;
 }
 
 export function setAutopilot(state: RunState, on: boolean): ReducerResult {

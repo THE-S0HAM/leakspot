@@ -21,6 +21,7 @@ export type { SectorStatus } from "./engine/types";
 export {
   createRun,
   rebuildContext,
+  getContext,
   tick,
   addReport,
   dispatch,

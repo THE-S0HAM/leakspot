@@ -75,7 +75,9 @@ export class LeakSpotStack extends Stack {
       handler: "handler",
       runtime: Runtime.NODEJS_22_X,
       architecture: Architecture.ARM_64,
-      memorySize: 512,
+      // 1024 MB (more vCPU) so the one-time 14-day history rebuild is fast; still inside the always-free
+      // 400,000 GB-s Lambda allowance given our low request volume (free-tier-guardrails.md).
+      memorySize: 1024,
       timeout: Duration.seconds(15),
       logGroup: new LogGroup(this, "ApiFnLogs", { retention: RetentionDays.ONE_WEEK }),
       bundling: { format: OutputFormat.ESM, target: "node22" },

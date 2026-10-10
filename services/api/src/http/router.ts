@@ -15,7 +15,7 @@ import {
   createRun,
   dispatch,
   DomainConflict,
-  rebuildContext,
+  getContext,
   repair,
   setAutopilot,
   tick,
@@ -275,7 +275,7 @@ async function routeRun(
     if (unauthorized) return unauthorized;
     const parsed = TickBody.safeParse(req.body ?? { count: 1 });
     if (!parsed.success) return err(400, "VALIDATION", "count must be an integer 1–4");
-    const context = rebuildContext(42);
+    const context = getContext(42);
     const result = await mutate(deps, runId, (state) => {
       let s = state;
       for (let i = 0; i < parsed.data.count; i += 1) s = tick(s, context).state;
@@ -322,7 +322,7 @@ async function routeIncidentAction(
   if (unauthorized) return unauthorized;
   if (req.method !== "POST") return NOT_FOUND;
 
-  const context = rebuildContext(42);
+  const context = getContext(42);
   try {
     const result = await mutate(deps, runId, (state) =>
       action === "dispatch"
