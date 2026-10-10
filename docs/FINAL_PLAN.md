@@ -33,36 +33,65 @@ STAGE 0: finish Stage A (30 min)
    same style. A <title> per route, meta description, theme-color, favicon.
 STOP.
 
-STAGE 1: Command Centre, a living city (75 min). Drop order if late: h, c (lamps/zebra), i (pinch).
-a. Diorama: the city on a floating ground slab: grass top, earth side faces ~18 px deep, dark soft shadow below.
-b. Sky behind it follows sim time: 05:45 night navy with twinkling stars → 06:00–07:00 dawn amber → day blue →
-   18:00–19:30 dusk violet → night. Three pixel clouds drift (60–90 s loops).
-c. Roads: asphalt strips with white dashed centre lines, the main avenue wider, zebra crossings at junctions,
-   street lamps that glow at dawn/dusk/night. Cube trees (two green blocks + trunk) swaying gently.
-d. Buildings by type, iso blocks with light top / mid left / dark right faces:
-   homes 2–3 floors with a black rooftop water tank whose level rises during supply; apartments 5–7 floors with
-   window grids; shops 1 floor with striped awnings; landmarks: hospital (white, red cross on the roof), school
-   (yellow + flag), reservoir as an elevated water tower on legs with a visible level, depot with a roll-up door.
-   ~40% of windows (seeded) glow warm yellow at dawn/dusk/night.
-e. Pipes: 4 px cyan core + dark outline with moving water dashes; speed follows each sector's inflow.
-   X-ray: everything above ground fades to ghost outlines, ground darkens, pipes glow (wide low-opacity stroke,
-   no blur filters). A suspected sector's service pipe pulses amber with drips.
-f. Crew truck: iso block truck (white cab, blue tank body, dark wheels, blinking amber beacon). Drives along the
-   road graph (shortest path over road nodes, never through buildings) from the depot during the ETA, parks at the
-   incident with looping wrench sparks while on site, drives back after the repair.
-g. Effects: burst = fountain of ~10 cyan pixel squares + a puddle growing each slot until repaired; suspected = amber
-   ripple rings; confirmed = bouncing red "!"; verified = green ring burst + droplet confetti + "+1.8 lakh L/day"
-   rising and fading.
-h. People: 12 tiny two-block citizens walking sidewalk loops. When a phone report arrives, one appears at the spot
-   with a camera-flash bubble as the pin pops in.
-i. Map: drag to pan, wheel/pinch to zoom (clamped), double-click zooms in, Fit city resets, hover tooltips on desktop,
-   tap selects on touch. The selected sector gets a pulsing outline.
-j. Top bar: clock with a thin bar filling until the next tick; health bar coloured by value; recovered litres
-   counting up; Phone button.
-k. Quest cards lift on hover, score bars animate in, state changes animate (dispatch → truck icon slides in).
-   Toasts slide in top right, max 3.
-l. Phones (< 768 px): the map fills the screen; bottom tab bar Map · Incidents · Impact · Feed; the Next-move bar stays
-   over the map; dock = Play/Pause, Step, speed cycle, and a "More" sheet. Tablet: map top 60%, rail below.
+STAGE 1-3D: Command Centre, a real 3D city (hard cap 100 min). REPLACES the old Stage 1.
+User verdict on the SVG map: "weird boxes and small squares, pipes don't reach the blocks, looks like a broken
+simulation, numbers unreadable." Commit after each part. STOP after 1a for a screenshot check; then 1b–1d and STOP.
+
+PART 0: readable numbers (everywhere, 10 min)
+- Pixelify Sans ONLY for the logo and headings that contain no digits. Every id, number, score, clock and
+  money/litre value uses JetBrains Mono with font-variant-numeric: tabular-nums (C3 was read as "03",
+  538.6 as "838.6"). Map/overlay labels ≥ 13 px, panels ≥ 14 px, contrast ≥ 4.5:1.
+
+PART 1a: City3D scene (react-three-fiber, as in world-3d.md, with these changes)
+- Check three / @react-three/fiber (v9 for React 19) / @react-three/drei are installed; pin exact versions. City3D is
+  React.lazy-loaded (citizen bundle unaffected), shown with a TankGauge boot loader. If WebGL is missing or City3D throws
+  (error boundary), or ?view=2d is in the URL, render the existing SVG CityView. Same props/callbacks as CityView, so
+  CommandCentre logic doesn't change.
+- Orthographic iso camera; drei MapControls: drag/one-finger pan, wheel/pinch zoom, both clamped to the city; rotation in
+  90° steps (Q/E + two HUD buttons, 300 ms). Fit city resets. Click/hover via r3f pointer events.
+- Light by sim time: hemisphere light + directional sun (colour, angle, intensity follow the clock: dawn warm and low,
+  day white and high, dusk orange, night dim blue moonlight). The CSS sky gradient sits behind a transparent canvas; drei
+  <Stars> at night. Soft shadows from the sun on screens ≥ 1024 px with > 4 CPU cores; off on phones.
+- Ground: a floating diorama slab (grass top, earth sides). Zone ground tints subtle (A ochre, B terracotta, C slate,
+  D indigo) so zones still read.
+- Roads: asphalt with dashed white lane lines (instanced), raised light-grey footpaths, zebra crossings at junctions,
+  the main avenue wider.
+- Buildings, all from @leakspot/core/world positions (seeded, deterministic), with Indian-city variety:
+  independent houses 2–3 floors in pastel limewash colours with parapet, small balcony and a black rooftop water tank;
+  apartment towers 6–8 floors with window grids, rooftop tank and lift room; one-floor shop rows with coloured awnings;
+  windows as instanced panes that glow warm yellow (~40%, seeded) at dawn/dusk/night.
+  Landmarks: hospital (white, red cross on roof and wall, ambulance parked), school (yellow, flag, playground field),
+  a park/garden with trees, benches and a pond, the reservoir as an elevated water tower on 4 legs whose water level
+  moves, the depot/pump house with the crew truck parked.
+- Trees: instanced low-poly (trunk + 2–3 stacked canopies) along streets and in the park.
+- Labels with drei <Html>, mono font, chip background: only for non-Normal sectors, the hovered/selected sector, incident
+  markers and report pins. Hover a sector → emissive highlight + the water-balance tooltip. Click → the existing sector panel.
+STOP: list what to look at on localhost.
+
+PART 1b: water, crew and effects
+- Pipes as real tubes that CONNECT: reservoir → trunk main → zone mains → a service pipe to each sector inlet meter (a
+  small meter box with a dial) → a lateral to EVERY building. Normal view: thin cyan utility lines on the ground along
+  the roads and laterals. X-ray (key X): ground, roads and buildings fade to 12% over 400 ms; pipes glow, with flow shown
+  by an animated stripe texture (texture.offset in useFrame), speed ∝ the sector's inflow, still in dry hours.
+- Suspected sector: pulsing amber ground ring + amber drip particles along its service pipe (never a precise point).
+- Visible leak (visibleLeaks): fountain of ~40 instanced cyan cubes with simple ballistic motion + a puddle disc that
+  grows per slot and drains after repair. Confirmed incident: bouncing red "!" marker.
+- Crew truck (cab + blue tank body + blinking amber beacon): shortest path over the road graph from the depot during
+  the ETA, facing its direction, wrench-spark particles while on site, drives back after repair.
+- Verified: expanding green ring + Html text "+1.8 lakh L/day" rising and fading.
+- Report pins: a post with a camera/tap chip ("Phone photo · small drip 90%"; scripted ones grey "Simulated report").
+  When a phone report arrives, a person appears at the spot with a white camera flash.
+
+PART 1c: life (drop this first if late)
+- 10–12 instanced cars and yellow-green auto-rickshaws looping on the roads; traffic lights at the main junctions
+  cycling red/amber/green every 6 s; cars wait at red if simple, otherwise just slow down near junctions.
+- 20 instanced citizens walking footpath loops with a small bob. Street lamps glow at dawn/dusk/night.
+- Reduced motion: no traffic, people or particles.
+
+PART 1d: landing hero
+- The landing hero uses City3D in spectator mode (no labels, slow quarter-turn every 20 s, sky cycling through a day
+  every 60 s). Headline + both buttons visible above the fold at 390×844 and 1440×900 (stacked on phones).
+  [Note: the original prompt text was cut off at "above the fold at"; completed per the global responsive rule.]
 STOP.
 
 STAGE 2: Citizen app as a game (50 min). Neel Limewash, pixel-block style. Drop order if late: f, b's animation.
