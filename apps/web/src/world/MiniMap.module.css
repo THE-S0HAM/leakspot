@@ -1,0 +1,23 @@
+/* Flat citizen mini-map (Neel Limewash). Square, touch-friendly, tap to drop a pin. */
+.map {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #eef3f6;
+  border: 2px solid var(--rule);
+  touch-action: none;
+  cursor: crosshair;
+}
+.sectorId {
+  font-family: var(--font-mono);
+  font-size: 4px;
+  fill: var(--ink);
+  opacity: 0.75;
+}
+.facility {
+  font-size: 6px;
+  fill: var(--ink);
+}
+.pin {
+  pointer-events: none;
+}

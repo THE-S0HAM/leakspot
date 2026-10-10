@@ -1,4 +1,4 @@
-// Hindi strings (हिंदी). Same keys as en.ts.
+// Hindi strings (हिंदी). Same keys as en.ts (i18n parity test enforces this).
 import type { Strings } from "./t";
 
 export const hi: Strings = {
@@ -10,26 +10,37 @@ export const hi: Strings = {
 
   chooseLanguage: "अपनी भाषा चुनें",
   iSeeALeak: "मुझे लीक दिख रहा है",
-  lowNoWater: "कम / नहीं पानी",
+  lowNoWater: "पानी कम या बंद है",
   myTickets: "मेरे टिकट",
   joinRun: "शहर का कोड डालें",
   flowing: "पानी बह रहा है",
   dripping: "बस टपक रहा है",
-  weakFlow: "कमज़ोर धार",
-  noWater: "पानी नहीं",
+  weakFlow: "पानी धीमा आ रहा है",
+  noWater: "पानी नहीं आ रहा",
   tapTheSpot: "जहाँ दिखे वहाँ टैप करें",
   send: "भेजें",
   retakePhoto: "फिर से फ़ोटो लें",
   takePhoto: "फ़ोटो लें",
-  offline:
-    "आप ऑफ़लाइन हैं। आपकी फ़ोटो और चुनाव सुरक्षित हैं; दोबारा कनेक्ट होने पर भेजें काम करेगा।",
+  offline: "आप ऑफ़लाइन हैं। आपकी फ़ोटो और चुनाव सुरक्षित हैं; दोबारा जुड़ने पर भेजें काम करेगा।",
   photoTooLarge: "यह फ़ोटो 400 KB से बड़ी है। दोबारा लें या पास जाएँ।",
-  reportRejected: "यह फ़ोटो लीक जैसी नहीं लगी। पास से एक और लें।",
+  reportRejected: "यह बहता पानी नहीं लगता। पास से एक फ़ोटो लें।",
+  locationRemoved: "फ़ोटो से लोकेशन हटा दी गई",
+  photoTypeError: "यह फ़ोटो नहीं चलेगी। कैमरे से नई फ़ोटो लें।",
+  tooManyReports: "इस फ़ोन से बहुत ज़्यादा रिपोर्ट। कुछ मिनट बाद फिर से करें।",
+  dayOverCitizen: "इस रन का दिन खत्म हो गया। कमांड स्क्रीन पर नया रन शुरू करें।",
+  runEnded: "यह रन खत्म हो गया। नया कोड माँगें।",
+  runCodePrompt: "रन कोड (कमांड स्क्रीन पर)",
+  seeMyTicket: "मेरा टिकट देखें",
+  photoSent: "फ़ोटो भेजी गई",
+  checkingServer: "सर्वर पर जाँच हो रही है",
+  sending: "भेज रहे हैं",
+  addedToExisting: "मौजूदा रिपोर्ट में जोड़ा गया",
+  neighbours: "पड़ोसी",
 
-  received: "प्राप्त",
-  checked: "जाँचा गया",
+  received: "मिली",
+  checked: "जाँची गई",
   crewAssigned: "टीम भेजी",
-  repaired: "मरम्मत",
+  repaired: "ठीक हुआ",
   confirmedByMeters: "मीटर से पुष्टि",
   ticketTitle: "आपका टिकट",
   archivedNote: "शोकेस शहर फिर से शुरू हुआ; यह रिपोर्ट पिछले दौर की थी।",
@@ -46,7 +57,7 @@ export const hi: Strings = {
   autopilot: "ऑटोपायलट",
   dispatchCrew: "टीम भेजें",
   markRepaired: "मरम्मत दर्ज करें",
-  verified: "मीटर से सत्यापित",
+  verified: "मीटर से पुष्टि",
   withWithout: "लीकस्पॉट के साथ बनाम बिना",
   simulation: "सिम्युलेशन",
 };

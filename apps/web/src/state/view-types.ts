@@ -92,8 +92,9 @@ export type TicketView = {
   selfReported: boolean;
   label?: string;
   status: string;
+  mergedCount: number;
   stages: Stage[];
-  incident?: { status: string; verdict: string };
+  incident?: { id: string; status: string; verdict: string };
 };
 
 export type ApiError = { error: { code: string; message: string; retryAfterSeconds?: number } };

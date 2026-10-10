@@ -1,24 +1,20 @@
-// Component test for the web shell: proves it renders exactly one level-1 "LeakSpot" heading (Req 10.5).
+// Smoke test for the app shell at "/": the landing renders the brand, the headline, and both actions.
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { App } from "./App";
 
-// vitest.config.ts sets globals: false, so Testing Library's auto-cleanup is not registered; do it explicitly.
 afterEach(() => {
   cleanup();
 });
 
-describe("App shell", () => {
-  it("renders a level-1 heading named LeakSpot", () => {
+describe("App shell at /", () => {
+  it("renders the landing with the brand, headline and both actions", () => {
     render(<App />);
-    const heading = screen.getByRole("heading", { level: 1, name: "LeakSpot" });
-    expect(heading).not.toBeNull();
-    expect(heading.textContent).toBe("LeakSpot");
-  });
-
-  it("renders exactly one level-1 heading", () => {
-    render(<App />);
-    const headings = screen.getAllByRole("heading", { level: 1 });
-    expect(headings).toHaveLength(1);
+    expect(screen.getByText("LeakSpot")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 1, name: /Find the water the city can't see/ }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: /I see a leak/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Enter command centre/ })).toBeTruthy();
   });
 });

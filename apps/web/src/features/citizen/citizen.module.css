@@ -1,0 +1,131 @@
+/* Citizen app (Neel Limewash): phone-first, one column, thumb zone at the bottom, tap targets ≥ 48 px. */
+.app {
+  min-height: 100dvh;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 12px 14px 24px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 14px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand {
+  font-family: var(--font-display);
+  font-size: var(--t-2);
+}
+.spacer {
+  flex: 1;
+}
+.langSwitch {
+  display: inline-flex;
+  gap: 2px;
+}
+.langBtn {
+  min-width: 44px;
+  min-height: 36px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.langBtnOn {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.body {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.bigButtons {
+  display: grid;
+  gap: 12px;
+}
+
+.choiceRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.preview {
+  width: 100%;
+  border: 2px solid var(--rule);
+  display: block;
+}
+.previewMeta {
+  font-size: var(--t-0);
+  color: var(--ink-dim);
+}
+
+.spotHint {
+  font-size: var(--t-0);
+  color: var(--ink-dim);
+  min-height: 1.2em;
+}
+
+.thumbZone {
+  position: sticky;
+  bottom: 0;
+  padding-top: 10px;
+  background: linear-gradient(180deg, transparent, var(--bg) 30%);
+  display: grid;
+  gap: 8px;
+}
+
+.error {
+  color: var(--sindoor);
+  font-size: var(--t-0);
+}
+.offlineBanner {
+  background: var(--haldi);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-size: var(--t-0);
+}
+
+.ticketList {
+  display: grid;
+  gap: 6px;
+}
+.ticketRow {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  text-decoration: none;
+  color: var(--ink);
+  min-height: 44px;
+  align-items: center;
+}
+
+.codeRow {
+  display: flex;
+  gap: 6px;
+}
+.codeCell {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--t-2);
+  text-transform: uppercase;
+  background: var(--panel);
+  border: 2px solid var(--rule);
+  color: var(--ink);
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-2);
+}

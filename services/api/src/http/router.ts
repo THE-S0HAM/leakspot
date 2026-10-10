@@ -130,6 +130,10 @@ function reportView(runId: string, state: RunState, reportId: string): RouterRes
   const incident = record?.incidentId
     ? state.incidents.find((i) => i.id === record.incidentId)
     : undefined;
+  // How many OTHER reports share this incident (for "added to an existing report · N neighbours").
+  const mergedCount = record?.incidentId
+    ? state.reports.filter((r) => r.incidentId === record.incidentId && r.id !== reportId).length
+    : 0;
   return {
     status: 200,
     body: {
@@ -141,8 +145,11 @@ function reportView(runId: string, state: RunState, reportId: string): RouterRes
       selfReported: record?.selfReported ?? false,
       label: record?.label,
       status: pending ? "pending" : "done",
+      mergedCount,
       stages: record ? stagesFor(record.rejected, record.selfReported) : pendingStages(),
-      incident: incident ? { status: incident.status, verdict: incident.verdict } : undefined,
+      incident: incident
+        ? { id: incident.id, status: incident.status, verdict: incident.verdict }
+        : undefined,
     },
   };
 }

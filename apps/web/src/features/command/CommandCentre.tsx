@@ -80,6 +80,7 @@ export function CommandCentre(): JSX.Element {
   const [viewBox, setViewBox] = useState(BASE_VIEWBOX);
   const [showBriefing, setShowBriefing] = useState(true);
   const [dayOver, setDayOver] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seenEvents = useRef(0);
@@ -265,7 +266,21 @@ export function CommandCentre(): JSX.Element {
         <span className={styles.hudStat}>
           Water recovered <CountUp value={state.waterRecoveredLitres} format={lakh} />
         </span>
+        <PixelButton variant="secondary" onClick={() => setPhoneOpen(true)}>
+          Phone
+        </PixelButton>
       </header>
+
+      {phoneOpen && (
+        <div className={styles.modalWrap} onClick={() => setPhoneOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h2>Report from a phone</h2>
+            <p className={styles.why}>Scan or open this on a phone to report into run {runId}.</p>
+            <QrJoin runId={runId} />
+            <PixelButton onClick={() => setPhoneOpen(false)}>Close</PixelButton>
+          </div>
+        </div>
+      )}
 
       <div className={styles.mapArea}>
         <div className={styles.nextMove}>

@@ -21,6 +21,8 @@ export type CityViewProps = {
   supplyOn?: boolean;
   xray?: boolean;
   viewBox?: string;
+  /** spectator mode (landing): no selection, no labels. */
+  spectator?: boolean;
   onSelectSector?: (id: SectorId) => void;
   onHoverSector?: (id: SectorId | null) => void;
 };
@@ -209,9 +211,14 @@ export function CityView(props: CityViewProps): JSX.Element {
     supplyOn = false,
     xray = false,
     viewBox = BASE_VIEWBOX,
+    spectator = false,
     onSelectSector,
     onHoverSector,
   } = props;
+
+  // Spectator (landing): no selection or hover handlers.
+  const selectHandler = spectator ? undefined : onSelectSector;
+  const hoverHandler = spectator ? undefined : onHoverSector;
 
   const allPipes = useMemo(() => [TRUNK, ...ZONE_MAINS, ...SERVICE_PIPES.map((p) => p.seg)], []);
 
@@ -225,7 +232,7 @@ export function CityView(props: CityViewProps): JSX.Element {
         aria-label="Isometric map of the simulated city of Jaldhara, coloured by sector status"
         style={{ transition: "all 0.4s ease-out" }}
       >
-        <GroundLayer onSelect={onSelectSector} onHover={onHoverSector} />
+        <GroundLayer onSelect={selectHandler} onHover={hoverHandler} />
 
         {/* Status overlay tint per non-normal sector */}
         {SECTORS.map((s) => {
@@ -386,25 +393,26 @@ export function CityView(props: CityViewProps): JSX.Element {
         {/* Crew truck */}
         {crew && <CrewTruck x={crew.x} z={crew.z} repairing={crew.repairing} />}
 
-        {/* Floating pixel status badges above the buildings (hide Normal). */}
-        {SECTORS.map((s) => {
-          const status = sectorStatus[s.id] ?? "normal";
-          if (status === "normal") return null;
-          const top = project(s.centroid.x, s.centroid.z, 7);
-          return (
-            <text
-              key={`badge-${s.id}`}
-              className={`${styles.badge} ${styles.badgeFloat}`}
-              x={top.sx}
-              y={top.sy}
-              textAnchor="middle"
-              fill={STATUS_TOKEN[status]}
-              pointerEvents="none"
-            >
-              {s.id} {STATUS_WORD[status]}
-            </text>
-          );
-        })}
+        {/* Floating pixel status badges above the buildings (hide Normal; none in spectator). */}
+        {!spectator &&
+          SECTORS.map((s) => {
+            const status = sectorStatus[s.id] ?? "normal";
+            if (status === "normal") return null;
+            const top = project(s.centroid.x, s.centroid.z, 7);
+            return (
+              <text
+                key={`badge-${s.id}`}
+                className={`${styles.badge} ${styles.badgeFloat}`}
+                x={top.sx}
+                y={top.sy}
+                textAnchor="middle"
+                fill={STATUS_TOKEN[status]}
+                pointerEvents="none"
+              >
+                {s.id} {STATUS_WORD[status]}
+              </text>
+            );
+          })}
       </svg>
     </div>
   );
