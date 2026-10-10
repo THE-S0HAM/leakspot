@@ -4,6 +4,7 @@
 // chosen speed. Errors → toast, never the feed.
 
 import { useCallback, useEffect, useRef, useState, type JSX } from "react";
+import { useSearchParams } from "react-router";
 import { FACILITIES, SECTOR_BY_ID, type SectorId } from "@leakspot/core/world";
 import {
   ApiCallError,
@@ -29,6 +30,8 @@ import { nextMove, type NextAction } from "./next-move";
 import styles from "./command.module.css";
 
 const TICK_MS = 3000;
+const RUN_KEY = "leakspot.command.run";
+const CODE_KEY = "leakspot.command.code";
 const DEPOT = FACILITIES.find((f) => f.kind === "depot")?.at ?? { x: 14, z: 102 };
 const CREW_ON_DUTY_SLOT = 4;
 
@@ -65,7 +68,15 @@ type Tab = "incidents" | "impact";
 type Popup = { id: number; text: string; kind: "info" | "confirmed" | "verified" };
 
 export function CommandCentre(): JSX.Element {
-  const [code, setCode] = useState<string | null>(null);
+  // Remember the code for this tab so a reload with ?run= goes straight back to the run (sessionStorage,
+  // try/catch; closing the tab clears it). The gate still appears on a fresh tab with no saved code.
+  const [code, setCode] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem(CODE_KEY);
+    } catch {
+      return null;
+    }
+  });
   const [runId, setRunId] = useState<string | null>(null);
   const [state, setState] = useState<RunStateView | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -81,8 +92,12 @@ export function CommandCentre(): JSX.Element {
   const [showBriefing, setShowBriefing] = useState(true);
   const [dayOver, setDayOver] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const [confirmNewRun, setConfirmNewRun] = useState(false);
+  const [params, setParams] = useSearchParams();
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickInFlight = useRef(false);
   const seenEvents = useRef(0);
   const popupId = useRef(0);
   const rafRef = useRef<number | null>(null);
@@ -123,41 +138,174 @@ export function CommandCentre(): JSX.Element {
     [absorbEvents],
   );
 
-  const start = useCallback(async (accessCode: string) => {
-    setCode(accessCode);
-    const { runId: id } = await createRun(accessCode);
-    setRunId(id);
-    seenEvents.current = 0;
-    const s = await getState(id, accessCode);
-    seenEvents.current = s.recentEvents.length;
-    setState(s);
-  }, []);
+  // The run id lives in the URL (?run=) and localStorage, so a reload resumes the SAME run. Only the
+  // explicit "Start my run" / "New run" buttons ever call createRun — no error path creates a run.
+  const syncRunId = useCallback(
+    (id: string | null) => {
+      setRunId(id);
+      const next = new URLSearchParams(params);
+      if (id) next.set("run", id);
+      else next.delete("run");
+      setParams(next, { replace: true });
+      try {
+        if (id) localStorage.setItem(RUN_KEY, id);
+        else localStorage.removeItem(RUN_KEY);
+      } catch {
+        // ignore — URL still carries the run id
+      }
+    },
+    [params, setParams],
+  );
+
+  // Load an existing run's state (resume). 404 → the run has ended.
+  const resume = useCallback(
+    async (id: string, accessCode: string) => {
+      try {
+        const s = await getState(id, accessCode);
+        seenEvents.current = s.recentEvents.length;
+        setState(s);
+        setEnded(false);
+      } catch (error) {
+        if (error instanceof ApiCallError && error.status === 404) {
+          setEnded(true);
+        } else {
+          showToast(error instanceof ApiCallError ? error.message : "Could not load the run");
+        }
+      }
+    },
+    [showToast],
+  );
+
+  // Explicit new run (lobby button / New-run confirm). The ONLY caller of createRun.
+  const createNewRun = useCallback(
+    async (accessCode: string) => {
+      try {
+        const { runId: id } = await createRun(accessCode);
+        seenEvents.current = 0;
+        syncRunId(id);
+        setEnded(false);
+        setDayOver(false);
+        setShowBriefing(true);
+        await resume(id, accessCode);
+      } catch (error) {
+        showToast(error instanceof ApiCallError ? error.message : "Could not start a run");
+      }
+    },
+    [resume, showToast, syncRunId],
+  );
+
+  // On passing the gate: resume the run from the URL/localStorage if there is one; else stay in the
+  // lobby. This runs once per code change.
+  const onGatePass = useCallback(
+    (accessCode: string) => {
+      setCode(accessCode);
+      try {
+        sessionStorage.setItem(CODE_KEY, accessCode);
+      } catch {
+        // ignore — the code just won't survive a reload on this tab
+      }
+      const fromUrl = params.get("run");
+      const fromStore = (() => {
+        try {
+          return localStorage.getItem(RUN_KEY);
+        } catch {
+          return null;
+        }
+      })();
+      const existing = fromUrl ?? fromStore;
+      if (existing) {
+        syncRunId(existing);
+        void resume(existing, accessCode);
+      }
+    },
+    [params, resume, syncRunId],
+  );
+
+  // When the code was restored from sessionStorage (reload), resume the run from ?run=/localStorage
+  // once, without showing the gate again.
+  const resumedOnMount = useRef(false);
+  useEffect(() => {
+    if (resumedOnMount.current || !code || runId) return;
+    resumedOnMount.current = true;
+    const existing =
+      params.get("run") ??
+      (() => {
+        try {
+          return localStorage.getItem(RUN_KEY);
+        } catch {
+          return null;
+        }
+      })();
+    if (!existing) return;
+    // Defer the state updates out of the effect body (avoids a synchronous setState-in-effect).
+    void Promise.resolve().then(() => {
+      syncRunId(existing);
+      void resume(existing, code);
+    });
+  }, [code, runId, params, resume, syncRunId]);
 
   const doTick = useCallback(
     async (count = 1) => {
-      if (!runId || !code) return;
+      if (!runId || !code || tickInFlight.current) return;
+      tickInFlight.current = true;
       try {
         apply(await tickRun(runId, code, count));
       } catch (error) {
         if (error instanceof ApiCallError && /day is over/i.test(error.message)) {
           setPlaying(false);
           setDayOver(true);
+        } else {
+          showToast(error instanceof ApiCallError ? error.message : "The tick failed; retrying");
         }
-        // other transient errors: next tick retries
+        // never reset state on error; the next tick/poll retries
+      } finally {
+        tickInFlight.current = false;
       }
     },
-    [runId, code, apply],
+    [runId, code, apply, showToast],
   );
 
+  // Play loop: tick every 3 s while visible; a tick in flight is skipped (doTick guards it).
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || !runId) return;
     timer.current = setInterval(() => {
       if (!document.hidden) void doTick(speed);
     }, TICK_MS);
     return () => {
       if (timer.current) clearInterval(timer.current);
     };
-  }, [playing, speed, doTick]);
+  }, [playing, speed, doTick, runId]);
+
+  // Live sync: while PAUSED and not day-over, poll GET state every 3 s so a phone report appears within
+  // 3 s. Skips while a tick is in flight and while the tab is hidden. Errors never reset state (backoff).
+  useEffect(() => {
+    if (!runId || !code || playing || ended || dayOver) return;
+    let backoff = TICK_MS;
+    let handle: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+    const loop = async (): Promise<void> => {
+      if (stopped) return;
+      if (!document.hidden && !tickInFlight.current) {
+        try {
+          const s = await getState(runId, code);
+          if (!stopped) apply(s);
+          backoff = TICK_MS;
+        } catch (error) {
+          if (error instanceof ApiCallError && error.status === 404) {
+            setEnded(true);
+            return;
+          }
+          backoff = Math.min(backoff * 2, 30000); // exponential backoff, capped
+        }
+      }
+      if (!stopped) handle = setTimeout(() => void loop(), backoff);
+    };
+    handle = setTimeout(() => void loop(), TICK_MS);
+    return () => {
+      stopped = true;
+      if (handle) clearTimeout(handle);
+    };
+  }, [runId, code, playing, ended, dayOver, apply]);
 
   const action = useCallback(
     async (fn: () => Promise<RunStateView>) => {
@@ -227,7 +375,31 @@ export function CommandCentre(): JSX.Element {
     return () => window.removeEventListener("keydown", onKey);
   }, [state, doTick, speed]);
 
-  if (!code || !runId || !state) return <CodeGate onPass={(c) => void start(c)} />;
+  // Phase 1: no code yet → the gate.
+  if (!code) return <CodeGate onPass={onGatePass} />;
+
+  // Phase 2: a run that 404'd → ended panel (never auto-creates a replacement).
+  if (ended) {
+    return (
+      <RunEndedPanel
+        onNewRun={() => {
+          syncRunId(null);
+          void createNewRun(code);
+        }}
+      />
+    );
+  }
+
+  // Phase 3: code accepted but no run yet → lobby with an explicit Start button.
+  if (!runId || !state) {
+    return (
+      <RunLobby
+        onStart={() => void createNewRun(code)}
+        onResume={runId ? () => void resume(runId, code) : undefined}
+        toast={toast}
+      />
+    );
+  }
 
   const sectors = statusMap(state);
   const incidents = [...state.incidents].sort((a, b) => b.score.P - a.score.P);
@@ -317,7 +489,39 @@ export function CommandCentre(): JSX.Element {
         />
 
         {showBriefing && <MissionBriefing onStart={() => setShowBriefing(false)} />}
-        {dayOver && <DayReport state={state} onNewRun={() => window.location.reload()} />}
+        {dayOver && (
+          <DayReport
+            state={state}
+            onNewRun={() => {
+              syncRunId(null);
+              setState(null);
+              void createNewRun(code);
+            }}
+          />
+        )}
+        {confirmNewRun && (
+          <div className={styles.modalWrap} onClick={() => setConfirmNewRun(false)}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <h2>Start a new run?</h2>
+              <p className={styles.why}>Phones reporting into {runId} will no longer show here.</p>
+              <div className={styles.cardActions}>
+                <PixelButton
+                  onClick={() => {
+                    setConfirmNewRun(false);
+                    syncRunId(null);
+                    setState(null);
+                    void createNewRun(code);
+                  }}
+                >
+                  Start new run
+                </PixelButton>
+                <PixelButton variant="secondary" onClick={() => setConfirmNewRun(false)}>
+                  Keep this run
+                </PixelButton>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <aside className={styles.rail}>
@@ -427,6 +631,9 @@ export function CommandCentre(): JSX.Element {
         <PixelButton variant="secondary" onClick={() => selectSector(null)}>
           Fit city
         </PixelButton>
+        <PixelButton variant="secondary" onClick={() => setConfirmNewRun(true)}>
+          New run
+        </PixelButton>
         <span className={styles.spacer} />
         <span className={styles.why}>Space play · S step · X x-ray</span>
       </footer>
@@ -474,6 +681,46 @@ function CountUp({
     return () => cancelAnimationFrame(raf);
   }, [value]);
   return <span className={className}>{format ? format(shown) : shown}</span>;
+}
+
+function RunLobby({
+  onStart,
+  onResume,
+  toast,
+}: {
+  onStart: () => void;
+  onResume?: () => void;
+  toast: string | null;
+}): JSX.Element {
+  return (
+    <div className={styles.gate}>
+      <div className={styles.gateCard}>
+        <h1>LeakSpot command centre</h1>
+        <SimLabel />
+        <p>You run Jaldhara&apos;s water for one simulated day.</p>
+        <PixelButton onClick={onStart}>Start my run</PixelButton>
+        {onResume && (
+          <PixelButton variant="secondary" onClick={onResume}>
+            Resume my run
+          </PixelButton>
+        )}
+        {toast && <div className={styles.error}>{toast}</div>}
+      </div>
+    </div>
+  );
+}
+
+function RunEndedPanel({ onNewRun }: { onNewRun: () => void }): JSX.Element {
+  return (
+    <div className={styles.gate}>
+      <div className={styles.gateCard}>
+        <h1>This run has ended</h1>
+        <SimLabel />
+        <p>A private run expires after its day is over. Start a fresh one to keep going.</p>
+        <PixelButton onClick={onNewRun}>New run</PixelButton>
+      </div>
+    </div>
+  );
 }
 
 function MissionBriefing({ onStart }: { onStart: () => void }): JSX.Element {

@@ -104,9 +104,24 @@ vi.mock("../../api/client", () => ({
 // qrcode is loaded by QrJoin on the Impact tab; stub it so the test never touches it.
 vi.mock("qrcode", () => ({ default: { toDataURL: vi.fn(async () => "data:,") } }));
 
+import { MemoryRouter } from "react-router";
 import { CommandCentre } from "./CommandCentre";
 
+function renderCommand(): void {
+  render(
+    <MemoryRouter initialEntries={["/command"]}>
+      <CommandCentre />
+    </MemoryRouter>,
+  );
+}
+
 beforeEach(() => {
+  try {
+    sessionStorage.clear();
+    localStorage.clear();
+  } catch {
+    // ignore
+  }
   slot = -1;
   crew = { status: "idle" };
   c3status = "open";
@@ -121,7 +136,7 @@ function getSlotLabel(): string {
 
 describe("Command Centre loop", () => {
   it("runs new run → ticks → dispatch C3 → 2 ticks → mark repaired → 3 ticks → VERIFIED", async () => {
-    render(<CommandCentre />);
+    renderCommand();
 
     // Code gate: fill 8 cells and enter.
     const cells = screen.getAllByLabelText(/Code character/);
@@ -131,7 +146,8 @@ describe("Command Centre loop", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Enter/ }));
 
-    // Dismiss the mission briefing.
+    // Lobby: start a run explicitly, then dismiss the mission briefing.
+    fireEvent.click(await screen.findByRole("button", { name: /Start my run/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Start$/ }));
 
     // New run loaded → Step past 07:00 (slot 4) so the crew is on duty and C3 is present. Await each
@@ -155,9 +171,17 @@ describe("Command Centre loop", () => {
     await waitFor(() => expect(dispatch.disabled).toBe(false));
     fireEvent.click(dispatch);
 
+    // Each Step is async (a tick-in-flight guard drops overlapping clicks), so await the clock advancing
+    // between clicks.
+    const stepAndWait = async (): Promise<void> => {
+      const before = getSlotLabel();
+      fireEvent.click(step);
+      await waitFor(() => expect(getSlotLabel()).not.toBe(before));
+    };
+
     // Two ticks: en route → on site.
-    fireEvent.click(step);
-    fireEvent.click(step);
+    await stepAndWait();
+    await stepAndWait();
 
     // Mark repaired becomes available on site (card and possibly the Next-move bar).
     const repairs = (await screen.findAllByRole("button", {
@@ -167,13 +191,55 @@ describe("Command Centre loop", () => {
     fireEvent.click(repair);
 
     // Three ticks: verifying 1/2/3 → VERIFIED banner.
-    fireEvent.click(step);
-    fireEvent.click(step);
-    fireEvent.click(step);
+    await stepAndWait();
+    await stepAndWait();
+    await stepAndWait();
 
     // Once verified, the card collapses to a green "✓ C3 verified" line in the rail.
     await waitFor(() => {
       expect(screen.getByText(/✓ C3 verified/)).toBeTruthy();
     });
+  });
+
+  it("never calls createRun when getState or tick fails (429 / 500 / network)", async () => {
+    const client = await import("../../api/client");
+    const createSpy = vi.mocked(client.createRun);
+    const tickSpy = vi.mocked(client.tickRun);
+    createSpy.mockClear();
+
+    renderCommand();
+    const cells = screen.getAllByLabelText(/Code character/);
+    "ABCDEFGH".split("").forEach((ch, i) => {
+      const cell = cells[i];
+      if (cell) fireEvent.change(cell, { target: { value: ch } });
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Enter/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Start my run/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Start$/ }));
+    const step = await screen.findByRole("button", { name: /^Step$/ });
+    expect(createSpy).toHaveBeenCalledTimes(1); // the explicit Start, nothing else
+
+    // Make ticks fail with 429, then 500, then a network error. None must create a run.
+    class ApiErr extends Error {
+      constructor(
+        readonly status: number,
+        readonly code: string,
+        msg: string,
+      ) {
+        super(msg);
+      }
+    }
+    tickSpy
+      .mockRejectedValueOnce(new ApiErr(429, "RATE_LIMITED", "slow down"))
+      .mockRejectedValueOnce(new ApiErr(500, "INTERNAL", "boom"))
+      .mockRejectedValueOnce(new ApiErr(0, "NETWORK", "offline"));
+
+    // Each failing Step must settle (the in-flight guard drops overlapping clicks) before the next.
+    for (let n = 1; n <= 3; n += 1) {
+      fireEvent.click(step);
+      await waitFor(() => expect(tickSpy).toHaveBeenCalledTimes(n));
+    }
+
+    expect(createSpy).toHaveBeenCalledTimes(1); // still only the explicit Start, no error path created one
   });
 });

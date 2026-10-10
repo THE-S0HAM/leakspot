@@ -84,6 +84,7 @@ vi.mock("../../api/client", () => ({
 }));
 vi.mock("qrcode", () => ({ default: { toDataURL: vi.fn(async () => "data:,") } }));
 
+import { MemoryRouter } from "react-router";
 import { CommandCentre } from "./CommandCentre";
 
 beforeEach(() => {
@@ -93,13 +94,18 @@ afterEach(() => cleanup());
 
 describe("no snake_case in the Command Centre", () => {
   it("renders only human words (incidents tab + impact tab)", async () => {
-    const { container } = render(<CommandCentre />);
+    const { container } = render(
+      <MemoryRouter initialEntries={["/command"]}>
+        <CommandCentre />
+      </MemoryRouter>,
+    );
     const cells = screen.getAllByLabelText(/Code character/);
     "ABCDEFGH".split("").forEach((ch, i) => {
       const cell = cells[i];
       if (cell) fireEvent.change(cell, { target: { value: ch } });
     });
     fireEvent.click(screen.getByRole("button", { name: /Enter/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Start my run/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Start$/ }));
 
     // Wait for the loaded state (the event feed title appears) — the Incidents tab shows collapsed
