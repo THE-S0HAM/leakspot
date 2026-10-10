@@ -29,6 +29,7 @@ import { VersionConflictError } from "../ports/run-store";
 import type { PhotoStore } from "../ports/photo-store";
 import { codeMatches } from "../app/auth";
 import { checkJpegBase64 } from "../app/jpeg";
+import { allowReport, clientKey } from "../app/rate-limit";
 import { newReportId, newRunId, ticketCode } from "../app/ids";
 import { resolveVision } from "../app/classify";
 
@@ -410,6 +411,16 @@ async function createReport(
   deps: RouterDeps,
   runId: string,
 ): Promise<RouterResult> {
+  // Rate limit citizen report creation (20 per 10 min per client). Command endpoints are never limited.
+  const rate = allowReport(clientKey(req.headers));
+  if (!rate.allowed) {
+    return err(
+      429,
+      "RATE_LIMITED",
+      `Too many reports from this phone. Try again in ${Math.ceil(rate.retryAfterSeconds / 60)} minutes.`,
+      rate.retryAfterSeconds,
+    );
+  }
   const parsed = CreateReportBody.safeParse(req.body);
   if (!parsed.success) {
     return err(400, "VALIDATION", parsed.error.issues[0]?.message ?? "Invalid report");

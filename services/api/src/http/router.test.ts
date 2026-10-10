@@ -2,11 +2,14 @@
 // happy path, plus validation, auth and not-found. The command code is generated per test run.
 
 import { createHash, randomInt } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createFakeVision } from "../adapters/fake/fake-vision";
 import { createMemoryPhotoStore } from "../adapters/memory/memory-photo-store";
 import { createMemoryRunStore } from "../adapters/memory/memory-run-store";
+import { __resetRateLimitForTests } from "../app/rate-limit";
 import { route, stripApiPrefix, type RouterDeps, type RouterRequest } from "./router";
+
+beforeEach(() => __resetRateLimitForTests());
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
 function makeCode(): string {
