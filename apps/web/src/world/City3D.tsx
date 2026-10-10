@@ -14,6 +14,7 @@ import type { SectorStatus } from "../state/view-types";
 import { STATUS_WORD } from "./status";
 import { HEX, STATUS_HEX, ZONE_GROUND } from "./palette";
 import { InstancedBoxes } from "./InstancedBoxes";
+import { CityLife } from "./City3DLife";
 import { dressCity, dressRoads } from "./city3d-dressing";
 import {
   buildNetwork,
@@ -614,6 +615,7 @@ export function City3D(props: City3DProps): JSX.Element {
           <Greenery />
           <Landmarks />
         </group>
+        <CityLife glow={glow} xray={xray} />
         <XrayFade target={fadeRef} xray={xray} />
         <Pipes network={NETWORK} xray={xray} />
         {xray && <FlowCubes network={NETWORK} supplyOn={supplyOn} sectorStatus={sectorStatus} />}
