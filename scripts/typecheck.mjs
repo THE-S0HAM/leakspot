@@ -13,11 +13,31 @@ const TS_AND_MJS = /** @type {const} */ ([".ts", ".tsx", ".mjs"]);
 
 /** @type {ReadonlyArray<{ name: string; tsconfig: string; include: readonly string[]; extensions: readonly string[] }>} */
 const projects = [
-  { name: "packages/core", tsconfig: "packages/core/tsconfig.json", include: ["src"], extensions: TS },
-  { name: "packages/contracts", tsconfig: "packages/contracts/tsconfig.json", include: ["src"], extensions: TS },
-  { name: "services/api", tsconfig: "services/api/tsconfig.json", include: ["src"], extensions: TS },
+  {
+    name: "packages/core",
+    tsconfig: "packages/core/tsconfig.json",
+    include: ["src"],
+    extensions: TS,
+  },
+  {
+    name: "packages/contracts",
+    tsconfig: "packages/contracts/tsconfig.json",
+    include: ["src"],
+    extensions: TS,
+  },
+  {
+    name: "services/api",
+    tsconfig: "services/api/tsconfig.json",
+    include: ["src"],
+    extensions: TS,
+  },
   { name: "apps/web", tsconfig: "apps/web/tsconfig.json", include: ["src"], extensions: TS },
-  { name: "infra", tsconfig: "infra/tsconfig.json", include: ["bin", "lib", "test"], extensions: TS },
+  {
+    name: "infra",
+    tsconfig: "infra/tsconfig.json",
+    include: ["bin", "lib", "test"],
+    extensions: TS,
+  },
   { name: "scripts", tsconfig: "scripts/tsconfig.json", include: ["."], extensions: TS_AND_MJS },
 ];
 
@@ -42,12 +62,19 @@ function hasInputFiles(dir, extensions) {
   return false;
 }
 
-const tscBin = path.join(rootDir, "node_modules", ".bin", process.platform === "win32" ? "tsc.cmd" : "tsc");
+const tscBin = path.join(
+  rootDir,
+  "node_modules",
+  ".bin",
+  process.platform === "win32" ? "tsc.cmd" : "tsc",
+);
 let failed = false;
 
 for (const project of projects) {
   const projectDir = path.join(rootDir, project.name);
-  const hasInputs = project.include.some((rel) => hasInputFiles(path.join(projectDir, rel), project.extensions));
+  const hasInputs = project.include.some((rel) =>
+    hasInputFiles(path.join(projectDir, rel), project.extensions),
+  );
   if (!hasInputs) {
     console.log(`typecheck: skipping ${project.name} (no source files yet)`);
     continue;

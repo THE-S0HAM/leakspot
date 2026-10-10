@@ -12,9 +12,7 @@ export const RunId = z.union([
   z.string().regex(new RegExp(`^${CROCKFORD_CHAR}{5}$`)),
 ]);
 
-export const ReportId = z
-  .string()
-  .regex(new RegExp(`^[0-7]${CROCKFORD_CHAR}{25}$`));
+export const ReportId = z.string().regex(new RegExp(`^[0-7]${CROCKFORD_CHAR}{25}$`));
 
 export type RunId = z.infer<typeof RunId>;
 export type ReportId = z.infer<typeof ReportId>;

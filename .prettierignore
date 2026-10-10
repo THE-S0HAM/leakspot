@@ -1,0 +1,9 @@
+# Installed dependencies, build/synth/coverage output and generated files (Prettier also reads .gitignore).
+node_modules/
+dist/
+cdk.out/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+*.tsbuildinfo
