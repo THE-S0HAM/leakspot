@@ -4,7 +4,7 @@
 // a floating diorama slab, roads, instanced buildings with Indian-city variety, landmarks, trees, and
 // drei <Html> labels for non-normal / hovered / selected sectors. Water, crew and effects are PART 1b.
 
-import { memo, useEffect, useMemo, useState, type JSX } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Html, MapControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
@@ -15,6 +15,16 @@ import { STATUS_WORD } from "./status";
 import { HEX, STATUS_HEX, ZONE_GROUND } from "./palette";
 import { InstancedBoxes } from "./InstancedBoxes";
 import { dressCity, dressRoads } from "./city3d-dressing";
+import {
+  buildNetwork,
+  CrewTruck,
+  FlowCubes,
+  LeakEffects,
+  Pipes,
+  ReportPins,
+  SuspectEffects,
+  XrayFade,
+} from "./City3DWater";
 import { skyFor, windowsGlow } from "./sky";
 import { buildCity3D, buildRoads, junctions, treeSpots } from "./city3d-geometry";
 import styles from "./City3D.module.css";
@@ -33,6 +43,9 @@ const DRESS = dressCity(
   treeSpots(),
 );
 const ROAD_DRESS = dressRoads(ROADS, JUNCTIONS);
+const NETWORK = buildNetwork(
+  CITY.flatMap((c) => c.buildings.map((b) => ({ ...b, sector: c.sector.id }))),
+);
 
 const prefersReducedMotion =
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -468,9 +481,15 @@ export function City3D(props: City3DProps): JSX.Element {
     xray = false,
     spectator = false,
     simClock,
+    incidents = [],
+    reports = [],
+    crew,
+    supplyOn = false,
     onSelectSector,
     onHoverSector,
+    onSelectReport,
   } = props;
+  const fadeRef = useRef<THREE.Group>(null);
 
   const [hovered, setHovered] = useState<SectorId | null>(null);
   const [selected, setSelected] = useState<SectorId | null>(null);
@@ -532,19 +551,28 @@ export function City3D(props: City3DProps): JSX.Element {
         />
         <SceneLighting label={label} shadows={shadows} />
 
-        <Slab />
-        <Roads />
-        <SectorTiles
-          sectorStatus={sectorStatus}
-          spectator={spectator}
-          hovered={hovered}
-          selected={selected}
-          onHover={handleHover}
-          onSelect={handleSelect}
-        />
-        <Buildings glow={glow && !xray} />
-        <Greenery />
-        <Landmarks />
+        <group ref={fadeRef}>
+          <Slab />
+          <Roads />
+          <SectorTiles
+            sectorStatus={sectorStatus}
+            spectator={spectator}
+            hovered={hovered}
+            selected={selected}
+            onHover={handleHover}
+            onSelect={handleSelect}
+          />
+          <Buildings glow={glow && !xray} />
+          <Greenery />
+          <Landmarks />
+        </group>
+        <XrayFade target={fadeRef} xray={xray} />
+        <Pipes network={NETWORK} xray={xray} />
+        {xray && <FlowCubes network={NETWORK} supplyOn={supplyOn} sectorStatus={sectorStatus} />}
+        <SuspectEffects sectorStatus={sectorStatus} />
+        <LeakEffects incidents={incidents} />
+        <CrewTruck crew={crew} />
+        {!spectator && <ReportPins reports={reports} onSelectReport={onSelectReport} />}
         {!spectator && (
           <SectorLabels sectorStatus={sectorStatus} hovered={hovered} selected={selected} />
         )}

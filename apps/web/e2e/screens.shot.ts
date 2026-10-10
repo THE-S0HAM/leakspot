@@ -26,13 +26,19 @@ for (const size of SIZES) {
       await settle(page);
       await page.screenshot({ path: `${OUT}/${size.name}-command-0545.png` });
 
-      // Step until the HUD clock reads 06:45 (scenario: C3 confirmed).
-      for (let i = 0; i < 12; i += 1) {
-        if (await page.getByText(/06:45/).first().isVisible()) break;
+      // Step until the HUD clock reads 06:45 (scenario: C3 confirmed). Wait for each tick to land.
+      const clock = async (): Promise<string> =>
+        (
+          (await page
+            .getByText(/Day 15 \d\d:\d\d/)
+            .first()
+            .textContent()) ?? ""
+        ).match(/\d\d:\d\d/)?.[0] ?? "";
+      for (let i = 0; i < 8 && (await clock()) < "06:45"; i += 1) {
+        const before = await clock();
         await page.getByRole("button", { name: /^Step$/ }).click();
-        await page.waitForTimeout(400);
+        await expect.poll(clock, { timeout: 15_000 }).not.toBe(before);
       }
-      await expect(page.getByText(/06:45/).first()).toBeVisible();
       await settle(page);
       await page.screenshot({ path: `${OUT}/${size.name}-command-0645.png` });
 

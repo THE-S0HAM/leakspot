@@ -7,5 +7,14 @@ export default defineConfig({
   ...base,
   testMatch: /.*\.shot\.ts/,
   timeout: 120_000,
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  projects: [
+    {
+      name: "chromium",
+      // Real GPU (ANGLE/D3D11): software WebGL is too slow for the 3D city at 1440×900.
+      use: {
+        browserName: "chromium",
+        launchOptions: { args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist"] },
+      },
+    },
+  ],
 });
