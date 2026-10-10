@@ -200,8 +200,17 @@ async function mutate(
   return err(503, "BUSY", "The run is busy, retry shortly", 1);
 }
 
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 export async function route(req: RouterRequest, deps: RouterDeps): Promise<RouterResult> {
-  const segments = req.path.split("/").filter(Boolean);
+  // Path params (e.g. incident id "#1" sent as "%231") must be decoded before matching.
+  const segments = req.path.split("/").filter(Boolean).map(decodeSegment);
   const { method } = req;
 
   // GET /health

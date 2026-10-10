@@ -291,15 +291,17 @@ function applyReportInPlace(
 
 export function dispatch(state: RunState, incidentId: string): ReducerResult {
   const next = clone(state);
-  if (next.crew.status !== "idle") {
-    return finish(next, [event(next.clock, "crew", "Crew is busy")]);
+  // Disallowed actions throw DomainConflict so the API returns 409 and the UI shows a toast — these
+  // are control-plane errors, never engine events, so they must not land in recentEvents.
+  const incident = next.incidents.find((i) => i.id === incidentId);
+  if (!incident || !isOpenForFusion(incident)) {
+    throw new DomainConflict("That incident is not open for dispatch");
   }
   if (next.clock.slotIndex < CREW_ON_DUTY_SLOT && next.clock.slotIndex >= 0) {
     throw new DomainConflict("Crew starts at 07:00");
   }
-  const incident = next.incidents.find((i) => i.id === incidentId);
-  if (!incident || !isOpenForFusion(incident)) {
-    return finish(next, [event(next.clock, "crew", "No such open incident")]);
+  if (next.crew.status !== "idle") {
+    throw new DomainConflict("Crew is busy");
   }
   next.crew = { status: "dispatched", incidentId, etaSlots: CREW_ARRIVAL_SLOTS };
   incident.status = "dispatched";
@@ -309,9 +311,9 @@ export function dispatch(state: RunState, incidentId: string): ReducerResult {
 export function repair(state: RunState, context: RunContext, incidentId: string): ReducerResult {
   const next = clone(state);
   const incident = next.incidents.find((i) => i.id === incidentId);
-  if (!incident) return finish(next, [event(next.clock, "crew", "No such incident")]);
+  if (!incident) throw new DomainConflict("No such incident");
   if (next.crew.status !== "onsite" || next.crew.incidentId !== incidentId) {
-    throw new DomainConflict("Crew is not on site");
+    throw new DomainConflict("The crew is not on site yet");
   }
   applyRepair(next, context, incident);
   next.crew = { status: "idle", etaSlots: undefined };

@@ -20,3 +20,10 @@ export function SimLabel(): JSX.Element {
 export function Panel({ children }: { children: React.ReactNode }): JSX.Element {
   return <div className={styles.panel}>{children}</div>;
 }
+
+/** City-health colour by value: neem when healthy, haldi mid, sindoor low. */
+export function healthColor(health: number): string {
+  if (health >= 70) return "var(--neem)";
+  if (health >= 40) return "var(--haldi)";
+  return "var(--sindoor)";
+}

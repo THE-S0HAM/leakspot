@@ -6,7 +6,7 @@ import { useMemo, type JSX } from "react";
 import { FACILITIES, RESERVOIR, SECTORS, TRUNK_MAIN, type SectorId } from "@leakspot/core/world";
 import type { IncidentView, SectorStatus } from "../state/view-types";
 import { buildCity, ZONE_TINT } from "./city-geometry";
-import { faceTop, project, VIEW_H, VIEW_W } from "./iso";
+import { BASE_VIEWBOX, faceTop, project } from "./iso";
 import { STATUS_COLOR, STATUS_WORD } from "./status";
 import styles from "./CityView.module.css";
 
@@ -19,6 +19,8 @@ export type CityViewProps = {
   xray?: boolean;
   showLabels?: boolean;
   spectator?: boolean;
+  /** viewBox override for camera pan/zoom; defaults to the fitted base that shows the whole city. */
+  viewBox?: string;
   onSelectSector?: (id: SectorId) => void;
 };
 
@@ -84,6 +86,7 @@ export function CityView(props: CityViewProps): JSX.Element {
     xray = false,
     showLabels = true,
     spectator = false,
+    viewBox = BASE_VIEWBOX,
   } = props;
 
   // Draw order: ground tiles → pipes (xray) → buildings (hidden in xray) → facilities → overlays →
@@ -105,7 +108,8 @@ export function CityView(props: CityViewProps): JSX.Element {
     <div className={styles.wrap}>
       <svg
         className={styles.svg}
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+        viewBox={viewBox}
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Isometric map of the simulated city of Jaldhara, coloured by sector status"
       >
