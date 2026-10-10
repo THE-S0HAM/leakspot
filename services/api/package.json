@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=22"
   },
+  "scripts": {
+    "dev:api": "tsx watch src/local/server.ts"
+  },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "3.1148.0",
     "@leakspot/contracts": "0.0.0",
