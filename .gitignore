@@ -1,6 +1,7 @@
 node_modules/
 dist/
 cdk.out/
+infra/cdk-outputs.json
 coverage/
 playwright-report/
 test-results/
