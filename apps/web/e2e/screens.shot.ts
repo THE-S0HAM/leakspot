@@ -60,3 +60,28 @@ for (const size of SIZES) {
     });
   });
 }
+
+// JOB 1 repro: nothing may grow while idle, and every step to 08:30 must look sane.
+test("idle and step to 08:30", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await startRun(page);
+  await settle(page);
+  for (const s of [0, 10, 30]) {
+    if (s) await page.waitForTimeout(s === 10 ? 10_000 : 20_000);
+    await page.screenshot({ path: `${OUT}/idle-0545-${s}s.png` });
+  }
+  const clock = async (): Promise<string> =>
+    (
+      (await page
+        .getByText(/Day 15 \d\d:\d\d/)
+        .first()
+        .textContent()) ?? ""
+    ).match(/\d\d:\d\d/)?.[0] ?? "";
+  for (let i = 0; i < 12 && (await clock()) < "08:30"; i += 1) {
+    const before = await clock();
+    await page.getByRole("button", { name: /^Step$/ }).click();
+    await expect.poll(clock, { timeout: 15_000 }).not.toBe(before);
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${OUT}/step-${(await clock()).replace(":", "")}.png` });
+  }
+});

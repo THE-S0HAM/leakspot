@@ -78,21 +78,6 @@ function paused(state: RootState): boolean {
   return document.hidden || state.frameloop === "never";
 }
 
-/** Set every material's opacity to `k` of the way from its base towards 12%. */
-function applyFade(mats: readonly THREE.Material[], k: number): void {
-  for (const m of mats) {
-    const base = (m.userData.baseOpacity as number | undefined) ?? 1;
-    const op = base * (1 - k * 0.88);
-    const wantT = op < 0.999 || base < 1;
-    if (m.transparent !== wantT) {
-      m.transparent = wantT;
-      m.needsUpdate = true;
-    }
-    m.opacity = op;
-    m.depthWrite = k < 0.5 || base >= 1;
-  }
-}
-
 // ---------- pipes ----------
 
 export const Pipes = memo(function Pipes({
@@ -201,7 +186,14 @@ export function FlowCubes({
 
 // ---------- X-ray fade ----------
 
-/** Fades every material under `target` to 12% over 400 ms when X-ray is on (and back). */
+type Snapshot = { opacity: number; transparent: boolean; depthWrite: boolean };
+
+/**
+ * Fades every material under `target` to 12% over 400 ms while X-ray is on, and back. It touches
+ * materials ONLY while X-ray is on or animating: on the way in it snapshots each material's own
+ * opacity/transparent/depthWrite (once per material, so shared materials are never compounded), picks
+ * up meshes mounted mid-X-ray, and on reaching 0 restores the exact snapshot and forgets everything.
+ */
 export function XrayFade({
   target,
   xray,
@@ -209,33 +201,52 @@ export function XrayFade({
   target: React.RefObject<THREE.Group | null>;
   xray: boolean;
 }): null {
-  const mats = useRef<THREE.Material[]>([]);
+  const saved = useRef(new Map<THREE.Material, Snapshot>());
   const k = useRef(0);
-  useEffect(() => {
-    const g = target.current;
-    if (!g) return;
-    const list: THREE.Material[] = [];
-    g.traverse((o) => {
-      const m = (o as THREE.Mesh).material;
-      if (!m) return;
-      for (const mm of Array.isArray(m) ? m : [m]) {
-        if (!list.includes(mm)) {
-          mm.userData.baseOpacity ??= mm.opacity;
-          list.push(mm);
-        }
-      }
-    });
-    mats.current = list;
-  });
   useFrame((state, dt) => {
     const goal = xray ? 1 : 0;
-    if (k.current === goal || paused(state)) return;
+    if (k.current === 0 && goal === 0) return; // idle: never touch materials
+    if (paused(state)) return;
+    const g = target.current;
+    if (!g) return;
     const step = reducedMotion ? 1 : dt / 0.4;
     k.current =
       goal > k.current ? Math.min(goal, k.current + step) : Math.max(goal, k.current - step);
-    applyFade(mats.current, k.current);
+    fadeTree(g, saved.current, k.current);
   });
   return null;
+}
+
+function fadeTree(g: THREE.Object3D, saved: Map<THREE.Material, Snapshot>, k: number): void {
+  if (k === 0) {
+    for (const [m, snap] of saved) {
+      m.opacity = snap.opacity;
+      m.depthWrite = snap.depthWrite;
+      if (m.transparent !== snap.transparent) {
+        m.transparent = snap.transparent;
+        m.needsUpdate = true;
+      }
+    }
+    saved.clear();
+    return;
+  }
+  g.traverse((o) => {
+    const mat = (o as THREE.Mesh).material;
+    if (!mat) return;
+    for (const m of Array.isArray(mat) ? mat : [mat]) {
+      let snap = saved.get(m);
+      if (!snap) {
+        snap = { opacity: m.opacity, transparent: m.transparent, depthWrite: m.depthWrite };
+        saved.set(m, snap);
+      }
+      m.opacity = snap.opacity * (1 - k * 0.88);
+      m.depthWrite = false;
+      if (!m.transparent) {
+        m.transparent = true;
+        m.needsUpdate = true;
+      }
+    }
+  });
 }
 
 // ---------- suspected rings + amber drips ----------
@@ -424,7 +435,25 @@ function Bang({ x, z }: { x: number; z: number }): JSX.Element {
   );
 }
 
-function VerifiedBurst({ x, z, litres }: { x: number; z: number; litres?: number }): JSX.Element {
+function VerifiedBurst({
+  x,
+  z,
+  litres,
+}: {
+  x: number;
+  z: number;
+  litres?: number;
+}): JSX.Element | null {
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    const h = setTimeout(() => setDone(true), 3200);
+    return () => clearTimeout(h);
+  }, []);
+  if (done) return null;
+  return <VerifiedBurstFx x={x} z={z} litres={litres} />;
+}
+
+function VerifiedBurstFx({ x, z, litres }: { x: number; z: number; litres?: number }): JSX.Element {
   const ring = useRef<THREE.Mesh>(null);
   const text = useRef<HTMLDivElement>(null);
   const t0 = useRef<number | null>(null);

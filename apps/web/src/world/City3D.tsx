@@ -6,7 +6,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { Html, MapControls, Stars } from "@react-three/drei";
+import { Html, MapControls } from "@react-three/drei";
 import * as THREE from "three";
 import { FACILITIES, RESERVOIR, SECTORS, WORLD_BOUNDS, type SectorId } from "@leakspot/core/world";
 import type { CityViewProps } from "./CityView";
@@ -477,7 +477,6 @@ function SceneLighting({
         shadow-mapSize-width={shadows ? 1024 : 0}
         shadow-mapSize-height={shadows ? 1024 : 0}
       />
-      {sky.night && <Stars radius={200} depth={50} count={1200} factor={4} fade speed={0} />}
     </group>
   );
 }
@@ -511,6 +510,8 @@ export type City3DProps = CityViewProps & {
   simClock?: { day: number; slotIndex: number; label: string };
   /** bump to re-fit the camera ("Fit city") */
   fitKey?: number;
+  /** called when the browser drops the WebGL context (CityCanvas remounts or falls back to 2D) */
+  onContextLost?: () => void;
 };
 
 export function City3D(props: City3DProps): JSX.Element {
@@ -586,6 +587,16 @@ export function City3D(props: City3DProps): JSX.Element {
         dpr={[1, 1.75]}
         shadows={shadows}
         gl={{ alpha: true, antialias: true }}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener(
+            "webglcontextlost",
+            (e) => {
+              e.preventDefault();
+              props.onContextLost?.();
+            },
+            { once: true },
+          );
+        }}
       >
         <IsoCamera rotationStep={rotationStep} fitKey={fitKey} />
         <MapControls

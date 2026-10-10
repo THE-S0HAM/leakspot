@@ -8,6 +8,7 @@ import {
   lazy,
   Suspense,
   useMemo,
+  useState,
   type ErrorInfo,
   type JSX,
   type ReactNode,
@@ -66,12 +67,15 @@ class City3DBoundary extends Component<
 
 export function CityCanvas(props: CityCanvasProps): JSX.Element {
   const use2d = useMemo(() => wants2d() || !hasWebGL(), []);
+  // WebGL context loss: remount the canvas once (new key); a second loss falls back to the SVG map,
+  // so the city is never a blank white/black box.
+  const [losses, setLosses] = useState(0);
   const svg = <CityView {...props} />;
-  if (use2d) return svg;
+  if (use2d || losses >= 2) return svg;
   return (
     <City3DBoundary fallback={svg}>
       <Suspense fallback={<TankGauge />}>
-        <City3D {...props} />
+        <City3D key={losses} {...props} onContextLost={() => setLosses((n) => n + 1)} />
       </Suspense>
     </City3DBoundary>
   );
