@@ -143,7 +143,7 @@ export function dressCity(
   // gardens: lawn + a tree or two
   gardens.forEach((g, i) => {
     out.lawns.push({ p: [g.cx, 0.09, g.cz], s: [g.w, 0.12, g.d], c: "#5fae4e" });
-    const n = 1 + (i % 2);
+    const n = 1;
     for (let k = 0; k < n; k += 1) {
       const tx = g.cx + (k === 0 ? -g.w * 0.2 : g.w * 0.22);
       const tz = g.cz + (k === 0 ? -g.d * 0.15 : g.d * 0.2);
@@ -156,15 +156,15 @@ export function dressCity(
 
 function pushTree(out: Dressing, x: number, z: number, i: number): void {
   const big = i % 3 === 0;
-  out.trunks.push({ p: [x, 0.7, z], s: [0.3, 1.4, 0.3] });
+  out.trunks.push({ p: [x, 0.9, z], s: [0.4, 1.8, 0.4] });
   out.canopies.push({
-    p: [x, 1.8, z],
-    s: big ? [1.9, 1.2, 1.9] : [1.5, 1, 1.5],
+    p: [x, 2.2, z],
+    s: big ? [2.8, 1.8, 2.8] : [2.3, 1.5, 2.3],
     c: i % 2 ? "#3f9a4a" : "#57b356",
   });
   out.canopies.push({
-    p: [x, 2.6, z],
-    s: big ? [1.3, 0.9, 1.3] : [1, 0.8, 1],
+    p: [x, 3.1, z],
+    s: big ? [1.9, 1.3, 1.9] : [1.5, 1.1, 1.5],
     ry: 0.4,
     c: i % 2 ? "#4fb05a" : "#6cc464",
   });

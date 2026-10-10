@@ -585,6 +585,31 @@ export function CrewTruck({ crew }: { crew: CrewMarker | undefined }): JSX.Eleme
 
 // ---------- report pins ----------
 
+export function reportChip(r: RecentReport): string {
+  if (r.source !== "phone") return "Simulated report";
+  if (r.type === "low_water") return "Phone report · low water";
+  const label = r.label ? ` · ${labelWord(r.label)}` : "";
+  const conf = r.confidence ? ` ${Math.round(r.confidence * 100)}%` : "";
+  return `Phone photo${label}${conf}`;
+}
+
+type PinCluster = { x: number; z: number; reports: RecentReport[] };
+
+/** Greedy clustering: reports within ~4 units share one marker. */
+export function clusterReports(reports: readonly RecentReport[], radius = 4): PinCluster[] {
+  const out: PinCluster[] = [];
+  for (const r of reports) {
+    const hit = out.find((c) => Math.hypot(c.x - r.x, c.z - r.z) < radius);
+    if (hit) {
+      hit.reports.push(r);
+      const n = hit.reports.length;
+      hit.x += (r.x - hit.x) / n;
+      hit.z += (r.z - hit.z) / n;
+    } else out.push({ x: r.x, z: r.z, reports: [r] });
+  }
+  return out;
+}
+
 export function ReportPins({
   reports,
   onSelectReport,
@@ -595,6 +620,7 @@ export function ReportPins({
   // A person + camera flash appears for 3 s at each NEW phone report.
   const seen = useRef<Set<string> | null>(null);
   const [fresh, setFresh] = useState<string[]>([]);
+  const [hover, setHover] = useState<string | null>(null);
   useEffect(() => {
     if (seen.current === null) {
       seen.current = new Set(reports.map((r) => r.reportId));
@@ -609,40 +635,75 @@ export function ReportPins({
     return () => clearTimeout(h);
   }, [reports]);
 
+  const clusters = useMemo(() => clusterReports(reports), [reports]);
+
   return (
     <group>
-      {reports.map((r) => {
-        const phone = r.source === "phone";
-        const chip = phone
-          ? r.type === "low_water"
-            ? "Phone report · low water"
-            : `Phone photo${r.label ? ` · ${labelWord(r.label)}` : ""}${r.confidence ? ` ${Math.round(r.confidence * 100)}%` : ""}`
-          : "Simulated report";
+      {clusters.map((c) => {
+        const first = c.reports[0];
+        if (!first) return null;
+        const key = first.reportId;
+        const phone = c.reports.some((r) => r.source === "phone");
+        const many = c.reports.length > 1;
+        const color = phone ? HEX.neel : "#8a96a6";
+        const scale = phone ? 1 : 0.7;
+        const chip = many ? `${c.reports.length} reports` : reportChip(first);
+        const showChip = many || hover === key;
+        const pick = c.reports.find((r) => r.source === "phone") ?? first;
         return (
-          <group key={r.reportId} position={[r.x, 0, r.z]}>
-            <mesh position={[0, 1.4, 0]}>
-              <boxGeometry args={[0.15, 2.8, 0.15]} />
-              <meshStandardMaterial color={phone ? HEX.neel : "#8a96a6"} />
-            </mesh>
-            <mesh position={[0, 3, 0]}>
-              <boxGeometry args={[0.7, 0.7, 0.7]} />
-              <meshBasicMaterial color={phone ? HEX.neel : "#8a96a6"} toneMapped={false} />
-            </mesh>
-            <Html position={[0, 4.2, 0]} center zIndexRange={[15, 5]}>
-              <button
-                type="button"
-                className={styles.label}
-                style={{
-                  borderColor: phone ? HEX.neel : "#8a96a6",
-                  color: phone ? undefined : "#c3ccd8",
-                  cursor: onSelectReport ? "pointer" : "default",
-                }}
-                onClick={() => onSelectReport?.(r.reportId)}
-              >
-                {chip}
-              </button>
-            </Html>
-            {fresh.includes(r.reportId) && <Photographer />}
+          <group key={key} position={[c.x, 0, c.z]} scale={[scale, scale, scale]}>
+            <group
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                setHover(key);
+              }}
+              onPointerOut={() => setHover((h) => (h === key ? null : h))}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (hover !== key) setHover(key); // first tap on touch shows the chip
+                onSelectReport?.(pick.reportId);
+              }}
+            >
+              <mesh position={[0, 1.2, 0]} castShadow>
+                <boxGeometry args={[0.18, 2.4, 0.18]} />
+                <meshStandardMaterial color={color} roughness={0.85} />
+              </mesh>
+              {/* icon head: a camera (photo) or a tap (low water) */}
+              {first.type === "leak_photo" ? (
+                <group position={[0, 2.8, 0]}>
+                  <mesh>
+                    <boxGeometry args={[1, 0.7, 0.5]} />
+                    <meshStandardMaterial color={color} roughness={0.85} />
+                  </mesh>
+                  <mesh position={[0, 0, 0.28]} rotation={[Math.PI / 2, 0, 0]}>
+                    <cylinderGeometry args={[0.22, 0.22, 0.12, 12]} />
+                    <meshStandardMaterial color="#f2f5f8" roughness={0.3} />
+                  </mesh>
+                </group>
+              ) : (
+                <group position={[0, 2.8, 0]}>
+                  <mesh>
+                    <boxGeometry args={[0.9, 0.3, 0.3]} />
+                    <meshStandardMaterial color={color} roughness={0.85} />
+                  </mesh>
+                  <mesh position={[0.35, -0.3, 0]}>
+                    <boxGeometry args={[0.2, 0.4, 0.2]} />
+                    <meshStandardMaterial color={color} roughness={0.85} />
+                  </mesh>
+                </group>
+              )}
+            </group>
+            {showChip && (
+              <Html position={[0, 4, 0]} center zIndexRange={[15, 5]} pointerEvents="none">
+                <span
+                  className={styles.label}
+                  style={{ borderColor: color, color: phone ? undefined : "#c3ccd8" }}
+                >
+                  {chip}
+                </span>
+              </Html>
+            )}
+            {c.reports.some((r) => fresh.includes(r.reportId)) && <Photographer />}
           </group>
         );
       })}

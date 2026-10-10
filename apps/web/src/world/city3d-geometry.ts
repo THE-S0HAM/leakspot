@@ -42,9 +42,10 @@ const ZONE_SPEC: Record<ZoneId, { floors: [number, number]; types: BuildingType[
   D: { floors: [5, 8], types: ["apartment", "apartment", "house"] }, // New Colony towers
 };
 
+// 3 x 2 plots per sector with a setback from the road: 4-6 buildings, the rest small gardens.
 const COLS = 3;
-const ROWS = 3;
-const GAP = 1.4;
+const ROWS = 2;
+const GAP = 2.2;
 
 function pick<T>(rng: () => number, arr: readonly T[]): T {
   return arr[Math.floor(rng() * arr.length)] as T;
@@ -68,13 +69,14 @@ export function buildCity3D(
       for (let c = 0; c < COLS; c += 1) {
         const cx = xMin + GAP * (c + 1) + cellW * c + cellW / 2;
         const cz = zMin + GAP * (r + 1) + cellD * r + cellD / 2;
-        if (rng() < 0.14) {
+        const skipped = gardens.length;
+        if (rng() < 0.18 && skipped < 2) {
           // an empty plot becomes a garden (lawn + trees)
           gardens.push({ cx, cz, w: cellW * 0.9, d: cellD * 0.9 });
           continue;
         }
-        const w = cellW * (0.72 + rng() * 0.22);
-        const d = cellD * (0.72 + rng() * 0.22);
+        const w = cellW * (0.62 + rng() * 0.14);
+        const d = cellD * (0.58 + rng() * 0.14);
         const type = pick(rng, spec.types);
         const [fMin, fMax] = spec.floors;
         const floors = type === "shop" ? 1 : fMin + Math.floor(rng() * (fMax - fMin + 1));
@@ -143,12 +145,12 @@ export function treeSpots(seed = 7): { x: number; z: number }[] {
   const rng = mulberry32(seed);
   const spots: { x: number; z: number }[] = [];
   for (const x of [25, 75]) {
-    for (let z = 16; z < 100; z += 10) {
+    for (let z = 18; z < 100; z += 20) {
       spots.push({ x: x + (rng() - 0.5) * 2, z: z + (rng() - 0.5) * 4 });
     }
   }
   // a small park cluster in the C2 yard area
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < 3; i += 1) {
     spots.push({ x: 34 + rng() * 10, z: 62 + rng() * 10 });
   }
   return spots;

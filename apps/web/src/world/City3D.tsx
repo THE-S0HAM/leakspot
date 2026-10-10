@@ -6,11 +6,12 @@
 
 import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { Html, MapControls } from "@react-three/drei";
+import { Environment, Html, Lightformer, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { FACILITIES, RESERVOIR, SECTORS, WORLD_BOUNDS, type SectorId } from "@leakspot/core/world";
 import type { CityViewProps } from "./CityView";
-import type { SectorStatus } from "../state/view-types";
+import type { IncidentView, SectorStatus } from "../state/view-types";
+import { verdictWord } from "../ui/words";
 import { STATUS_WORD } from "./status";
 import { HEX, STATUS_HEX, ZONE_GROUND } from "./palette";
 import { InstancedBoxes } from "./InstancedBoxes";
@@ -53,45 +54,77 @@ const prefersReducedMotion =
 
 // ---------- camera + controls ----------
 
-/** Zoom that fits the whole diorama in the canvas (orthographic: pixels per world unit). */
-export function fitZoom(width: number, height: number): number {
-  return Math.max(1.5, Math.min(width / 158, height / 118));
+// Perspective camera (fov 35) + OrbitControls: free 360° orbit, polar angle clamped to 20°–65°, pan
+// clamped to the city. Q/E and the HUD buttons add a 90° snap animated over 300 ms; Fit city frames
+// the whole slab.
+const FOV = 35;
+const START_POLAR = (50 * Math.PI) / 180;
+const MIN_POLAR = (20 * Math.PI) / 180;
+const MAX_POLAR = (65 * Math.PI) / 180;
+
+/** Camera distance that frames the whole slab at this aspect ratio. */
+export function fitDistance(aspect: number): number {
+  const half = (FOV * Math.PI) / 360;
+  return (83 / Math.tan(half)) * 0.72 * Math.max(1, 1.45 / Math.max(0.3, aspect));
 }
 
-function setZoom(camera: THREE.Camera, zoom: number): void {
-  if (camera instanceof THREE.OrthographicCamera) {
-    camera.zoom = zoom;
-    camera.updateProjectionMatrix();
-  }
+type Orbit = { target: THREE.Vector3; update: () => void };
+
+function frameCity(camera: THREE.Camera, controls: Orbit | null, aspect: number): void {
+  const d = fitDistance(aspect);
+  const az = controls ? Math.atan2(camera.position.x - CX, camera.position.z - CZ) : Math.PI / 4;
+  camera.position.set(
+    CX + d * Math.sin(START_POLAR) * Math.sin(az),
+    d * Math.cos(START_POLAR),
+    CZ + d * Math.sin(START_POLAR) * Math.cos(az),
+  );
+  controls?.target.set(CX, 0, CZ);
+  camera.lookAt(CX, 0, CZ);
+  controls?.update();
 }
 
-function IsoCamera({ rotationStep, fitKey }: { rotationStep: number; fitKey: number }): null {
-  const { camera, size } = useThree();
+function CameraRig({ rotationStep, fitKey }: { rotationStep: number; fitKey: number }): null {
+  const camera = useThree((s) => s.camera);
+  const controls = useThree((s) => s.controls) as unknown as Orbit | null;
+  const size = useThree((s) => s.size);
   useEffect(() => {
-    setZoom(camera, fitZoom(size.width, size.height));
-  }, [camera, size.width, size.height, fitKey]);
-  const target = useMemo(() => new THREE.Vector3(CX, 0, CZ), []);
-  // Orthographic iso: look down from a fixed quarter angle, rotated in 90° steps around the city
-  // centre, animated over 300 ms (instant with reduced motion).
-  const goal = (rotationStep * Math.PI) / 2 + Math.PI / 4;
-  const angle = useRef<number | null>(null);
+    frameCity(camera, controls, size.width / Math.max(1, size.height));
+  }, [camera, controls, size.width, size.height, fitKey]);
+  const last = useRef(rotationStep);
+  const pending = useRef(0);
   useFrame((state, dt) => {
     if (document.hidden) return;
-    const cur = angle.current;
-    if (cur !== null && Math.abs(cur - goal) < 1e-4) return;
-    const speed = Math.PI / 2 / 0.3;
-    const next =
-      cur === null || prefersReducedMotion
-        ? goal
-        : cur + Math.sign(goal - cur) * Math.min(Math.abs(goal - cur), speed * dt);
-    angle.current = next;
-    const dist = 150;
-    state.camera.position.set(
-      target.x + Math.cos(next) * dist,
-      130,
-      target.z + Math.sin(next) * dist,
-    );
-    state.camera.lookAt(target);
+    const c = state.controls as unknown as Orbit | null;
+    if (!c) return;
+    if (last.current !== rotationStep) {
+      pending.current += ((rotationStep - last.current) * Math.PI) / 2;
+      last.current = rotationStep;
+    }
+    const cam = state.camera;
+    if (pending.current !== 0) {
+      const speed = Math.PI / 2 / 0.3;
+      const step = prefersReducedMotion
+        ? pending.current
+        : Math.sign(pending.current) * Math.min(Math.abs(pending.current), speed * dt);
+      pending.current -= step;
+      if (Math.abs(pending.current) < 1e-4) pending.current = 0;
+      const ox = cam.position.x - c.target.x;
+      const oz = cam.position.z - c.target.z;
+      const cos = Math.cos(step);
+      const sin = Math.sin(step);
+      cam.position.x = c.target.x + ox * cos - oz * sin;
+      cam.position.z = c.target.z + ox * sin + oz * cos;
+      c.update();
+    }
+    // keep the pan target on the city
+    const tx = Math.min(WORLD_BOUNDS.xMax, Math.max(WORLD_BOUNDS.xMin, c.target.x));
+    const tz = Math.min(WORLD_BOUNDS.zMax, Math.max(WORLD_BOUNDS.zMin, c.target.z));
+    if (tx !== c.target.x || tz !== c.target.z || c.target.y !== 0) {
+      cam.position.x += tx - c.target.x;
+      cam.position.z += tz - c.target.z;
+      cam.position.y -= c.target.y;
+      c.target.set(tx, 0, tz);
+    }
   });
   return null;
 }
@@ -131,9 +164,6 @@ const Roads = memo(function Roads(): JSX.Element {
       </InstancedBoxes>
       <InstancedBoxes items={ROAD_DRESS.dashes}>
         <meshStandardMaterial color="#f2f5f8" />
-      </InstancedBoxes>
-      <InstancedBoxes items={ROAD_DRESS.zebras}>
-        <meshStandardMaterial color="#eef2f5" />
       </InstancedBoxes>
     </group>
   );
@@ -429,7 +459,7 @@ function SectorLabels({
     <group>
       {SECTORS.map((s) => {
         const status = sectorStatus[s.id] ?? "normal";
-        const show = status !== "normal" || hovered === s.id || selected === s.id;
+        const show = hovered === s.id || selected === s.id;
         if (!show) return null;
         return (
           <Html
@@ -450,6 +480,40 @@ function SectorLabels({
   );
 }
 
+// One chip per open incident, e.g. "C3 · Confirmed burst".
+const CHIP_LIVE = new Set(["open", "dispatched", "onsite", "repaired", "verifying", "reopened"]);
+
+function IncidentChips({ incidents }: { incidents: readonly IncidentView[] }): JSX.Element {
+  return (
+    <group>
+      {incidents
+        .filter((i) => CHIP_LIVE.has(i.status))
+        .map((i) => {
+          const word = verdictWord(i.verdict);
+          const color =
+            i.verdict === "CONFIRMED"
+              ? HEX.sindoor
+              : i.verdict === "LOCAL_LEAK"
+                ? HEX.jal
+                : HEX.haldi;
+          return (
+            <Html
+              key={i.id}
+              position={[i.pin.x, 12, i.pin.z]}
+              center
+              zIndexRange={[10, 0]}
+              pointerEvents="none"
+            >
+              <span className={styles.label} style={{ borderColor: color }}>
+                <b>{i.sectorId}</b> · {word.charAt(0).toUpperCase() + word.slice(1)}
+              </span>
+            </Html>
+          );
+        })}
+    </group>
+  );
+}
+
 // ---------- lighting ----------
 
 function SceneLighting({
@@ -460,23 +524,57 @@ function SceneLighting({
   shadows: boolean;
 }): JSX.Element {
   const sky = useMemo(() => skyFor(label), [label]);
+  const sunTarget = useMemo(() => {
+    const o = new THREE.Object3D();
+    o.position.set(CX, 0, CZ);
+    return o;
+  }, []);
+  const [sx, sy, sz] = sky.sun.position;
   return (
     <group>
       {/* a small constant floor so the city is never near-black, even at the 05:45 night start */}
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={0.35} />
       <hemisphereLight
         color={sky.hemi.sky}
         groundColor={sky.hemi.ground}
         intensity={sky.hemi.intensity}
       />
+      <primitive object={sunTarget} />
       <directionalLight
         color={sky.sun.color}
         intensity={sky.sun.intensity}
-        position={sky.sun.position}
+        position={[CX + sx, sy, CZ + sz - 40]}
+        target={sunTarget}
         castShadow={shadows}
-        shadow-mapSize-width={shadows ? 1024 : 0}
-        shadow-mapSize-height={shadows ? 1024 : 0}
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.05}
+        shadow-camera-left={-85}
+        shadow-camera-right={85}
+        shadow-camera-top={85}
+        shadow-camera-bottom={-85}
+        shadow-camera-near={1}
+        shadow-camera-far={500}
       />
+      {/* soft studio reflections from Lightformers only: no HDR download */}
+      <Environment resolution={64} environmentIntensity={sky.night ? 0.15 : 0.35}>
+        <Lightformer
+          form="rect"
+          intensity={2}
+          position={[0, 10, 0]}
+          rotation-x={Math.PI / 2}
+          scale={[20, 20, 1]}
+        />
+        <Lightformer
+          form="rect"
+          intensity={0.8}
+          color="#ffd9b0"
+          position={[-10, 3, 0]}
+          rotation-y={Math.PI / 2}
+          scale={[20, 6, 1]}
+        />
+      </Environment>
+      <fog attach="fog" args={[sky.hemi.ground, 380, 900]} />
     </group>
   );
 }
@@ -558,13 +656,6 @@ export function City3D(props: City3DProps): JSX.Element {
     onSelectSector?.(id);
   };
 
-  // Spectator: a slow quarter-turn every 20 s.
-  useEffect(() => {
-    if (!spectator || prefersReducedMotion) return;
-    const id = window.setInterval(() => setRotationStep((r) => r + 1), 20_000);
-    return () => window.clearInterval(id);
-  }, [spectator]);
-
   // Q/E rotate in 90° steps.
   useEffect(() => {
     if (spectator) return;
@@ -582,8 +673,7 @@ export function City3D(props: City3DProps): JSX.Element {
       <div className={styles.sky} style={{ background: sky.gradient }} aria-hidden />
       <Canvas
         className={styles.canvas}
-        orthographic
-        camera={{ zoom: 7, near: -500, far: 1000, position: [CX + 150, 130, CZ + 150] }}
+        camera={{ fov: FOV, near: 1, far: 2000, position: [CX + 150, 180, CZ + 150] }}
         dpr={[1, 1.75]}
         shadows={shadows}
         gl={{ alpha: true, antialias: true }}
@@ -598,17 +688,23 @@ export function City3D(props: City3DProps): JSX.Element {
           );
         }}
       >
-        <IsoCamera rotationStep={rotationStep} fitKey={fitKey} />
-        <MapControls
+        <OrbitControls
           makeDefault
-          enabled={!spectator}
-          enableRotate={false}
-          minZoom={1.5}
-          maxZoom={24}
           target={[CX, 0, CZ]}
           enableDamping
-          dampingFactor={0.15}
+          dampingFactor={0.12}
+          minPolarAngle={MIN_POLAR}
+          maxPolarAngle={MAX_POLAR}
+          minDistance={35}
+          maxDistance={520}
+          screenSpacePanning={false}
+          enablePan={!spectator}
+          enableZoom={!spectator}
+          enableRotate={!spectator}
+          autoRotate={spectator && !prefersReducedMotion}
+          autoRotateSpeed={0.35}
         />
+        <CameraRig rotationStep={rotationStep} fitKey={fitKey} />
         <SceneLighting label={label} shadows={shadows} />
 
         <group ref={fadeRef}>
@@ -628,7 +724,7 @@ export function City3D(props: City3DProps): JSX.Element {
         </group>
         <CityLife glow={glow} xray={xray} />
         <XrayFade target={fadeRef} xray={xray} />
-        <Pipes network={NETWORK} xray={xray} />
+        {xray && <Pipes network={NETWORK} xray />}
         {xray && <FlowCubes network={NETWORK} supplyOn={supplyOn} sectorStatus={sectorStatus} />}
         <SuspectEffects sectorStatus={sectorStatus} />
         <LeakEffects incidents={incidents} />
@@ -637,6 +733,7 @@ export function City3D(props: City3DProps): JSX.Element {
         {!spectator && (
           <SectorLabels sectorStatus={sectorStatus} hovered={hovered} selected={selected} />
         )}
+        {!spectator && <IncidentChips incidents={incidents} />}
       </Canvas>
 
       {!spectator && (

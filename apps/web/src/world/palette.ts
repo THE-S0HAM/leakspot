@@ -33,10 +33,10 @@ export const STATUS_HEX: Record<SectorStatus, string> = {
 // Subtle zone ground tints so zones still read on the diorama slab (plan PART 1a).
 // A ochre, B terracotta, C slate, D indigo — low-saturation so status overlays stay legible.
 export const ZONE_GROUND: Record<ZoneId, string> = {
-  A: "#b59d68",
-  B: "#b07a62",
-  C: "#8495a0",
-  D: "#7c85ad",
+  A: "#a9b58a",
+  B: "#adb58c",
+  C: "#a2b592",
+  D: "#a0b298",
 };
 
 // Building wall/roof tints per zone (3D), brighter and more varied than the SVG map so the city reads

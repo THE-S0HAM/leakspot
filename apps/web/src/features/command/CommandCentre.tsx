@@ -89,6 +89,10 @@ export function CommandCentre(): JSX.Element {
   const [tab, setTab] = useState<Tab>("incidents");
   const [selected, setSelected] = useState<SectorId | null>(null);
   const [hover, setHover] = useState<SectorId | null>(null);
+  // The sector tooltip follows a mouse pointer (16 px offset, kept below the Next-move bar); on touch
+  // there is no hover, the tap opens the sector panel instead.
+  const [tipPos, setTipPos] = useState<{ x: number; y: number } | null>(null);
+  const touchRef = useRef(false);
   const [toast, setToast] = useState<string | null>(null);
   const [popups, setPopups] = useState<Popup[]>([]);
   const [viewBox, setViewBox] = useState(BASE_VIEWBOX);
@@ -488,7 +492,22 @@ export function CommandCentre(): JSX.Element {
         </div>
       )}
 
-      <div className={styles.mapArea}>
+      <div
+        className={styles.mapArea}
+        onPointerMove={(e) => {
+          touchRef.current = e.pointerType === "touch";
+          if (touchRef.current) return;
+          const box = e.currentTarget.getBoundingClientRect();
+          const bar = e.currentTarget.querySelector(`.${styles.nextMove}`)?.getBoundingClientRect();
+          const minY = bar ? bar.bottom - box.top + 8 : 8;
+          const x = Math.min(e.clientX - box.left + 16, box.width - 380);
+          const y = Math.max(e.clientY - box.top + 16, minY);
+          setTipPos({ x: Math.max(8, x), y: Math.min(y, box.height - 40) });
+        }}
+        onPointerDown={(e) => {
+          touchRef.current = e.pointerType === "touch";
+        }}
+      >
         <div className={styles.nextMove}>
           <span className={styles.nextMoveText}>{move.text}</span>
           {move.action && move.label && (
@@ -509,7 +528,7 @@ export function CommandCentre(): JSX.Element {
           ))}
         </div>
 
-        {hover && <SectorTooltip state={state} sectorId={hover} />}
+        {hover && tipPos && <SectorTooltip state={state} sectorId={hover} pos={tipPos} />}
 
         <CityCanvas
           sectorStatus={sectors}
@@ -522,7 +541,7 @@ export function CommandCentre(): JSX.Element {
           simClock={state.simClock}
           fitKey={fitKey}
           onSelectSector={selectSector}
-          onHoverSector={setHover}
+          onHoverSector={(id) => setHover(touchRef.current ? null : id)}
           onSelectReport={setSelectedReport}
         />
 
@@ -828,14 +847,16 @@ function DayReport({
 function SectorTooltip({
   state,
   sectorId,
+  pos,
 }: {
   state: RunStateView;
   sectorId: SectorId;
+  pos: { x: number; y: number };
 }): JSX.Element | null {
   const r = state.sectors.find((s) => s.id === sectorId);
   if (!r) return null;
   return (
-    <div className={styles.tooltip} style={{ top: 44, left: 12 }}>
+    <div className={styles.tooltip} style={{ top: pos.y, left: pos.x }}>
       {sectorId}: in {litres(r.inflowLitres)} · used {litres(r.usedLitres)} · unaccounted{" "}
       {Math.round(r.lossRatio * 100)}% (usual {Math.round(r.baselineRatio * 100)}%)
     </div>
