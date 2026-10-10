@@ -7,7 +7,9 @@
     "node": ">=22"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./world": "./src/world/index.ts",
+    "./counterfactual": "./src/engine/counterfactual.ts"
   },
   "devDependencies": {
     "vitest": "5.0.3"
