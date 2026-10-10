@@ -33,7 +33,13 @@ function binPath(name) {
  */
 function run(step, command, args, cwd) {
   console.log(`deploy: ${step}`);
-  const result = spawnSync(command, [...args], { cwd, stdio: "inherit", shell: isWindows });
+  const result = spawnSync(command, [...args], {
+    cwd,
+    stdio: "inherit",
+    shell: isWindows,
+    // Signals the stack to require a real .env.deploy code and reject the placeholder hash.
+    env: { ...process.env, LEAKSPOT_DEPLOY: "1" },
+  });
   if (result.status !== 0) {
     console.error(`deploy: step failed: ${step}`);
     process.exit(result.status ?? 1);

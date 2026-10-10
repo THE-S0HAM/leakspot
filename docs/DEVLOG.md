@@ -41,3 +41,4 @@ task by running each tool's JS entry with `process.execPath`); the checkpoint-lo
 
 ## 2026-10-10 — Deadline mode
 - Entered deadline mode (<10 h to submission): dropped vitest coverage block, marked CP0 PARTIAL (tag cp-00-partial), added `.kiro/steering/00-deadline-mode.md` and ADR-015; now work from block prompts, not specs.
+- Block 1 (AWS skeleton): one CDK stack (DynamoDB 25/25, 2 private buckets, API Lambda nodejs22 arm64 + public Function URL AuthType NONE, CloudFront with SPA-rewrite function + /api/* behaviour, WebDeploy BucketDeployment); API router/handler + local :8787 server; dev/deploy scripts; installed aws-cdk 2.1145.0, esbuild 0.28.2 (infra), tsx 4.23.15 (root). Docs MCP confirmed a public Function URL now needs both lambda:InvokeFunctionUrl and lambda:InvokeFunction (Oct-2025), both added. Command-code hash computed at synth from .env.deploy; deploy sets LEAKSPOT_DEPLOY=1 so the placeholder hash can never deploy.

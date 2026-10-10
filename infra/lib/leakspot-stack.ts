@@ -22,6 +22,7 @@ import {
 } from "aws-cdk-lib/aws-cloudfront";
 import { FunctionUrlOrigin, S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
 import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
+import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 import { AnyPrincipal, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Architecture, FunctionUrlAuthType, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction, OutputFormat } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -141,35 +142,58 @@ export class LeakSpotStack extends Stack {
       },
     });
 
+    new BucketDeployment(this, "WebDeploy", {
+      sources: [Source.asset(path.join(repoRoot, "apps", "web", "dist"))],
+      destinationBucket: webBucket,
+      distribution,
+      distributionPaths: ["/*"],
+    });
+
     new CfnOutput(this, "SiteUrl", { value: `https://${distribution.distributionDomainName}` });
   }
 }
 
-// A deterministic, obviously-fake hash used when no real code is available (unit synth / tests).
-// 64 hex chars so config.ts accepts it; it never matches any real code, so a stack synthesised
-// without .env.deploy cannot authenticate command routes. The deploy script refuses to run
-// without .env.deploy, so a real deploy always carries the real hash.
+// A deterministic, obviously-fake hash used only for `cdk synth` and tests on a checkout with no
+// secret file. 64 hex chars so config.ts accepts it; it never matches any real code. The deploy
+// script sets LEAKSPOT_DEPLOY=1, and under that flag the placeholder is refused (see below), so the
+// placeholder can never reach AWS.
 const PLACEHOLDER_SHA256 = "0".repeat(64);
 
+// The command-code alphabet (security-and-access.md): A–Z and 2–9 without I, L, O, U.
+const CODE_RE = /^[ABCDEFGHJKMNPQRSTVWXYZ23456789]{8}$/;
+
 /**
- * SHA-256 of the command code for the Lambda env, resolved at synth without emitting the plaintext:
- * an already-set COMMAND_CODE_SHA256 env var wins; otherwise LEAKSPOT_COMMAND_CODE from .env.deploy;
- * otherwise the placeholder (so `cdk synth` and tests work on a checkout with no secret file).
+ * SHA-256 of the trimmed, uppercased command code for the Lambda env, resolved at synth without
+ * emitting the plaintext. When LEAKSPOT_DEPLOY=1 (set by the deploy script), a valid 8-char code
+ * from .env.deploy is REQUIRED and the function throws otherwise, so the placeholder never deploys.
+ * Without that flag (synth / tests) it falls back to the placeholder.
  */
 function readCommandCodeSha256(): string {
-  const preComputed = process.env["COMMAND_CODE_SHA256"];
-  if (preComputed && /^[0-9a-f]{64}$/.test(preComputed)) return preComputed;
-
+  const isDeploy = process.env["LEAKSPOT_DEPLOY"] === "1";
   const envPath = path.join(repoRoot, ".env.deploy");
-  if (!existsSync(envPath)) return PLACEHOLDER_SHA256;
+
+  if (!existsSync(envPath)) {
+    if (isDeploy) {
+      throw new Error("Deploy aborted: .env.deploy not found (needs LEAKSPOT_COMMAND_CODE).");
+    }
+    return PLACEHOLDER_SHA256;
+  }
 
   const line = readFileSync(envPath, "utf8")
     .split(/\r?\n/)
     .find((candidate) => candidate.startsWith("LEAKSPOT_COMMAND_CODE="));
-  const raw = line?.slice("LEAKSPOT_COMMAND_CODE=".length).trim();
-  if (!raw) return PLACEHOLDER_SHA256;
+  const code = line?.slice("LEAKSPOT_COMMAND_CODE=".length).trim().toUpperCase();
 
-  return createHash("sha256").update(raw.toUpperCase()).digest("hex");
+  if (!code || !CODE_RE.test(code)) {
+    if (isDeploy) {
+      throw new Error(
+        "Deploy aborted: LEAKSPOT_COMMAND_CODE must be 8 chars from ABCDEFGHJKMNPQRSTVWXYZ23456789.",
+      );
+    }
+    return PLACEHOLDER_SHA256;
+  }
+
+  return createHash("sha256").update(code).digest("hex");
 }
 
 /** Scope bedrock:InvokeModel to the Nova Lite inference profiles + their foundation-model ARNs. */
