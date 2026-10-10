@@ -21,6 +21,8 @@ const City3D = lazy(() => import("./City3D").then((m) => ({ default: m.City3D })
 
 export type CityCanvasProps = CityViewProps & {
   simClock?: { day: number; slotIndex: number; label: string };
+  /** bump to re-fit the 3D camera ("Fit city") */
+  fitKey?: number;
 };
 
 /** True when a WebGL context can be created. Cached after the first check. */

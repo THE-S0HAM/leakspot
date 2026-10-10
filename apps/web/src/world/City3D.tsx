@@ -4,7 +4,7 @@
 // a floating diorama slab, roads, instanced buildings with Indian-city variety, landmarks, trees, and
 // drei <Html> labels for non-normal / hovered / selected sectors. Water, crew and effects are PART 1b.
 
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
+import { memo, useEffect, useMemo, useState, type JSX } from "react";
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Html, MapControls, Stars } from "@react-three/drei";
 import * as THREE from "three";
@@ -12,7 +12,9 @@ import { FACILITIES, RESERVOIR, SECTORS, WORLD_BOUNDS, type SectorId } from "@le
 import type { CityViewProps } from "./CityView";
 import type { SectorStatus } from "../state/view-types";
 import { STATUS_WORD } from "./status";
-import { HEX, STATUS_HEX, ZONE_BUILDING, ZONE_GROUND } from "./palette";
+import { HEX, STATUS_HEX, ZONE_GROUND } from "./palette";
+import { InstancedBoxes } from "./InstancedBoxes";
+import { dressCity, dressRoads } from "./city3d-dressing";
 import { skyFor, windowsGlow } from "./sky";
 import { buildCity3D, buildRoads, junctions, treeSpots } from "./city3d-geometry";
 import styles from "./City3D.module.css";
@@ -25,15 +27,35 @@ const CITY = buildCity3D(42);
 const ALL_BUILDINGS = CITY.flatMap((c) => c.buildings);
 const ROADS = buildRoads();
 const JUNCTIONS = junctions();
-const TREES = treeSpots();
+const DRESS = dressCity(
+  ALL_BUILDINGS,
+  CITY.flatMap((c) => c.gardens),
+  treeSpots(),
+);
+const ROAD_DRESS = dressRoads(ROADS, JUNCTIONS);
 
 const prefersReducedMotion =
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 // ---------- camera + controls ----------
 
-function IsoCamera({ rotationStep }: { rotationStep: number }): null {
-  const { camera } = useThree();
+/** Zoom that fits the whole diorama in the canvas (orthographic: pixels per world unit). */
+export function fitZoom(width: number, height: number): number {
+  return Math.max(1.5, Math.min(width / 158, height / 118));
+}
+
+function setZoom(camera: THREE.Camera, zoom: number): void {
+  if (camera instanceof THREE.OrthographicCamera) {
+    camera.zoom = zoom;
+    camera.updateProjectionMatrix();
+  }
+}
+
+function IsoCamera({ rotationStep, fitKey }: { rotationStep: number; fitKey: number }): null {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    setZoom(camera, fitZoom(size.width, size.height));
+  }, [camera, size.width, size.height, fitKey]);
   const target = useMemo(() => new THREE.Vector3(CX, 0, CZ), []);
   useEffect(() => {
     // Orthographic iso: look down from a fixed quarter angle, rotated in 90° steps around the target.
@@ -57,11 +79,11 @@ const Slab = memo(function Slab(): JSX.Element {
     <group>
       <mesh position={[CX, -0.2, CZ]} receiveShadow>
         <boxGeometry args={[w, 0.4, d]} />
-        <meshStandardMaterial color="#2f6b3a" />
+        <meshStandardMaterial color="#5b9a48" roughness={1} />
       </mesh>
       <mesh position={[CX, -depth / 2 - 0.4, CZ]}>
         <boxGeometry args={[w, depth, d]} />
-        <meshStandardMaterial color="#4a3524" />
+        <meshStandardMaterial color="#6b4a30" roughness={1} />
       </mesh>
     </group>
   );
@@ -71,198 +93,80 @@ const Roads = memo(function Roads(): JSX.Element {
   return (
     <group>
       {ROADS.map((r, i) => (
-        <group key={i}>
-          <mesh position={[r.cx, 0.02, r.cz]} receiveShadow>
-            <boxGeometry args={[r.w, 0.08, r.d]} />
-            <meshStandardMaterial color="#20272f" />
-          </mesh>
-          {/* dashed centre line */}
-          <DashedLine road={r} />
-        </group>
+        <mesh key={i} position={[r.cx, 0.05, r.cz]} receiveShadow>
+          <boxGeometry args={[r.w, 0.1, r.d]} />
+          <meshStandardMaterial color="#3a414b" roughness={0.95} />
+        </mesh>
       ))}
-      {/* zebra crossings at junctions */}
-      {JUNCTIONS.map((j, i) => (
-        <group key={`z${i}`}>
-          {[-2, -1, 0, 1, 2].map((n) => (
-            <mesh key={n} position={[j.x + n * 0.8, 0.07, j.z]}>
-              <boxGeometry args={[0.4, 0.02, 3]} />
-              <meshStandardMaterial color="#cdd6de" />
-            </mesh>
-          ))}
-        </group>
-      ))}
+      <InstancedBoxes items={ROAD_DRESS.footpaths} receiveShadow>
+        <meshStandardMaterial color="#b9bec4" roughness={0.9} />
+      </InstancedBoxes>
+      <InstancedBoxes items={ROAD_DRESS.dashes}>
+        <meshStandardMaterial color="#f2f5f8" />
+      </InstancedBoxes>
+      <InstancedBoxes items={ROAD_DRESS.zebras}>
+        <meshStandardMaterial color="#eef2f5" />
+      </InstancedBoxes>
     </group>
   );
 });
 
-function DashedLine({ road }: { road: ReturnType<typeof buildRoads>[number] }): JSX.Element {
-  const dashes = road.horizontal ? road.w : road.d;
-  const count = Math.floor(dashes / 4);
-  return (
-    <group>
-      {[...Array(count).keys()].map((i) => {
-        const t = (i + 0.5) * 4 - dashes / 2;
-        const x = road.horizontal ? road.cx + t : road.cx;
-        const z = road.horizontal ? road.cz : road.cz + t;
-        return (
-          <mesh key={i} position={[x, 0.07, z]}>
-            <boxGeometry args={road.horizontal ? [1.6, 0.02, 0.25] : [0.25, 0.02, 1.6]} />
-            <meshStandardMaterial color="#e7eef7" />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-}
-
-// Instanced building bodies (one box each). Walls coloured per zone; roofs a separate instanced mesh.
+// All building parts, each layer one instanced draw call. Window panes glow (seeded ~40%) at night.
 const Buildings = memo(function Buildings({ glow }: { glow: boolean }): JSX.Element {
-  const wallsRef = useRef<THREE.InstancedMesh>(null);
-  const roofsRef = useRef<THREE.InstancedMesh>(null);
-  const windowsRef = useRef<THREE.InstancedMesh>(null);
-
-  // Window instances: one glowing pane per glowing building (cheap stand-in for a grid).
-  const glowingBuildings = useMemo(() => ALL_BUILDINGS.filter((b) => b.glowSeed < 0.4), []);
-
-  useLayoutEffect(() => {
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-    const walls = wallsRef.current;
-    const roofs = roofsRef.current;
-    if (!walls || !roofs) return;
-    ALL_BUILDINGS.forEach((b, i) => {
-      const h = b.floors;
-      dummy.position.set(b.cx, h / 2, b.cz);
-      dummy.scale.set(b.w, h, b.d);
-      dummy.rotation.set(0, 0, 0);
-      dummy.updateMatrix();
-      walls.setMatrixAt(i, dummy.matrix);
-      walls.setColorAt(i, color.set(ZONE_BUILDING[b.zone].wall));
-      // roof slab just above the top
-      dummy.position.set(b.cx, h + 0.15, b.cz);
-      dummy.scale.set(b.w * 1.04, 0.3, b.d * 1.04);
-      dummy.updateMatrix();
-      roofs.setMatrixAt(i, dummy.matrix);
-      roofs.setColorAt(i, color.set(ZONE_BUILDING[b.zone].roof));
-    });
-    walls.instanceMatrix.needsUpdate = true;
-    roofs.instanceMatrix.needsUpdate = true;
-    if (walls.instanceColor) walls.instanceColor.needsUpdate = true;
-    if (roofs.instanceColor) roofs.instanceColor.needsUpdate = true;
-  }, []);
-
-  useLayoutEffect(() => {
-    const win = windowsRef.current;
-    if (!win) return;
-    const dummy = new THREE.Object3D();
-    glowingBuildings.forEach((b, i) => {
-      // a pane facing +x, mid-height
-      dummy.position.set(b.cx + b.w / 2 + 0.05, Math.max(0.8, b.floors * 0.6), b.cz);
-      dummy.scale.set(0.1, 0.5, b.d * 0.5);
-      dummy.updateMatrix();
-      win.setMatrixAt(i, dummy.matrix);
-    });
-    win.instanceMatrix.needsUpdate = true;
-    win.visible = glow;
-  }, [glow, glowingBuildings]);
-
+  const windows = useMemo(
+    () =>
+      DRESS.windows.map((w, i) => ({
+        ...w,
+        c: glow && DRESS.windowGlow[i] ? "#ffcf6a" : glow ? "#2b3a52" : "#5b7590",
+      })),
+    [glow],
+  );
   return (
     <group>
-      <instancedMesh
-        ref={wallsRef}
-        args={[undefined, undefined, ALL_BUILDINGS.length]}
+      <InstancedBoxes items={DRESS.walls} castShadow receiveShadow>
+        <meshStandardMaterial roughness={0.85} />
+      </InstancedBoxes>
+      <InstancedBoxes items={DRESS.roofs} castShadow receiveShadow>
+        <meshStandardMaterial roughness={0.9} />
+      </InstancedBoxes>
+      <InstancedBoxes items={windows}>
+        <meshStandardMaterial
+          emissive="#ffb24a"
+          emissiveIntensity={glow ? 0.35 : 0}
+          roughness={0.3}
+          metalness={0.1}
+        />
+      </InstancedBoxes>
+      <InstancedBoxes items={DRESS.balconies} castShadow>
+        <meshStandardMaterial roughness={0.8} />
+      </InstancedBoxes>
+      <InstancedBoxes items={DRESS.awnings} castShadow>
+        <meshStandardMaterial roughness={0.7} />
+      </InstancedBoxes>
+      <InstancedBoxes
+        items={DRESS.tanks}
         castShadow
-        receiveShadow
+        geometry={<cylinderGeometry args={[0.5, 0.5, 1, 10]} />}
       >
-        <boxGeometry args={[1, 1, 1]} />
-        {/* a touch of self-lit so the pastel limewash walls still read at the 05:45 night start */}
-        <meshStandardMaterial
-          vertexColors
-          roughness={0.8}
-          emissive="#20283a"
-          emissiveIntensity={0.5}
-        />
-      </instancedMesh>
-      <instancedMesh ref={roofsRef} args={[undefined, undefined, ALL_BUILDINGS.length]} castShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial vertexColors roughness={0.9} />
-      </instancedMesh>
-      <instancedMesh
-        ref={windowsRef}
-        args={[undefined, undefined, Math.max(1, glowingBuildings.length)]}
-      >
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial
-          color="#ffd98a"
-          emissive="#ffb64a"
-          emissiveIntensity={glow ? 0.9 : 0}
-          toneMapped={false}
-        />
-      </instancedMesh>
-      <RooftopTanks />
+        <meshStandardMaterial color="#15191f" roughness={0.6} />
+      </InstancedBoxes>
     </group>
   );
 });
 
-// Black rooftop tanks on buildings flagged `tank`.
-const RooftopTanks = memo(function RooftopTanks(): JSX.Element {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const tanks = useMemo(() => ALL_BUILDINGS.filter((b) => b.tank), []);
-  useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    const dummy = new THREE.Object3D();
-    tanks.forEach((b, i) => {
-      dummy.position.set(b.cx - b.w * 0.25, b.floors + 0.6, b.cz - b.d * 0.25);
-      dummy.scale.set(0.9, 0.8, 0.9);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-  }, [tanks]);
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, Math.max(1, tanks.length)]} castShadow>
-      <cylinderGeometry args={[0.5, 0.5, 1, 8]} />
-      <meshStandardMaterial color="#111820" />
-    </instancedMesh>
-  );
-});
-
-// Instanced trees (trunk + two canopy blocks).
-const Trees = memo(function Trees(): JSX.Element {
-  const trunkRef = useRef<THREE.InstancedMesh>(null);
-  const canopyRef = useRef<THREE.InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const trunk = trunkRef.current;
-    const canopy = canopyRef.current;
-    if (!trunk || !canopy) return;
-    const dummy = new THREE.Object3D();
-    const color = new THREE.Color();
-    TREES.forEach((t, i) => {
-      dummy.position.set(t.x, 0.6, t.z);
-      dummy.scale.set(0.3, 1.2, 0.3);
-      dummy.updateMatrix();
-      trunk.setMatrixAt(i, dummy.matrix);
-      dummy.position.set(t.x, 1.6, t.z);
-      dummy.scale.set(1.4, 1.4, 1.4);
-      dummy.updateMatrix();
-      canopy.setMatrixAt(i, dummy.matrix);
-      canopy.setColorAt(i, color.set(i % 2 ? "#2f7d3a" : "#3c9a47"));
-    });
-    trunk.instanceMatrix.needsUpdate = true;
-    canopy.instanceMatrix.needsUpdate = true;
-    if (canopy.instanceColor) canopy.instanceColor.needsUpdate = true;
-  }, []);
+// Gardens and trees (trunk + two stacked canopies), instanced.
+const Greenery = memo(function Greenery(): JSX.Element {
   return (
     <group>
-      <instancedMesh ref={trunkRef} args={[undefined, undefined, TREES.length]} castShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#5a3f28" />
-      </instancedMesh>
-      <instancedMesh ref={canopyRef} args={[undefined, undefined, TREES.length]} castShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial vertexColors roughness={0.9} />
-      </instancedMesh>
+      <InstancedBoxes items={DRESS.lawns} receiveShadow>
+        <meshStandardMaterial roughness={1} />
+      </InstancedBoxes>
+      <InstancedBoxes items={DRESS.trunks} castShadow>
+        <meshStandardMaterial color="#6b4a2e" />
+      </InstancedBoxes>
+      <InstancedBoxes items={DRESS.canopies} castShadow>
+        <meshStandardMaterial roughness={0.9} flatShading />
+      </InstancedBoxes>
     </group>
   );
 });
@@ -277,11 +181,29 @@ function Landmarks(): JSX.Element {
     <group>
       {/* Hospital: white block, red cross on the roof */}
       <group position={[hospital.x, 0, hospital.z]}>
-        <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
-          <boxGeometry args={[6, 5, 6]} />
+        <mesh position={[0, 3.5, 0]} castShadow receiveShadow>
+          <boxGeometry args={[7, 7, 6]} />
           <meshStandardMaterial color="#f3f6f8" />
         </mesh>
-        <mesh position={[0, 5.1, 0]}>
+        {/* red cross on the street wall */}
+        <mesh position={[0, 5, 3.02]}>
+          <boxGeometry args={[1.6, 0.5, 0.05]} />
+          <meshStandardMaterial color={HEX.sindoor} />
+        </mesh>
+        <mesh position={[0, 5, 3.02]}>
+          <boxGeometry args={[0.5, 1.6, 0.05]} />
+          <meshStandardMaterial color={HEX.sindoor} />
+        </mesh>
+        {/* ambulance parked out front */}
+        <mesh position={[2.2, 0.6, 4.4]} castShadow>
+          <boxGeometry args={[2.2, 1.1, 1.1]} />
+          <meshStandardMaterial color="#ffffff" />
+        </mesh>
+        <mesh position={[2.2, 0.62, 4.96]}>
+          <boxGeometry args={[1.6, 0.18, 0.02]} />
+          <meshStandardMaterial color={HEX.sindoor} />
+        </mesh>
+        <mesh position={[0, 7.1, 0]}>
           <boxGeometry args={[2.4, 0.2, 0.7]} />
           <meshStandardMaterial
             color={HEX.sindoor}
@@ -289,7 +211,7 @@ function Landmarks(): JSX.Element {
             emissiveIntensity={0.3}
           />
         </mesh>
-        <mesh position={[0, 5.1, 0]}>
+        <mesh position={[0, 7.1, 0]}>
           <boxGeometry args={[0.7, 0.2, 2.4]} />
           <meshStandardMaterial
             color={HEX.sindoor}
@@ -305,6 +227,16 @@ function Landmarks(): JSX.Element {
           <boxGeometry args={[6, 4, 5]} />
           <meshStandardMaterial color="#f2c84b" />
         </mesh>
+        <mesh position={[-1, 0.1, 4.2]} receiveShadow>
+          <boxGeometry args={[7, 0.1, 3.2]} />
+          <meshStandardMaterial color="#c98a4b" />
+        </mesh>
+        {[-3.6, 1.6].map((gx) => (
+          <mesh key={gx} position={[gx, 0.6, 4.2]}>
+            <boxGeometry args={[0.1, 1.2, 1.2]} />
+            <meshStandardMaterial color="#f4f4f4" />
+          </mesh>
+        ))}
         <mesh position={[2.6, 5, 0]}>
           <boxGeometry args={[0.12, 2.4, 0.12]} />
           <meshStandardMaterial color="#8a6a30" />
@@ -348,6 +280,27 @@ function Landmarks(): JSX.Element {
           <boxGeometry args={[3.4, 2.4, 0.1]} />
           <meshStandardMaterial color="#c9ccd4" />
         </mesh>
+      </group>
+
+      {/* Park: lawn, pond, benches (trees come from the instanced greenery) */}
+      <group position={[39, 0, 67]}>
+        <mesh position={[0, 0.08, 0]} receiveShadow>
+          <boxGeometry args={[12, 0.1, 10]} />
+          <meshStandardMaterial color="#6cbf57" />
+        </mesh>
+        <mesh position={[1.5, 0.15, 1]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[2.4, 20]} />
+          <meshStandardMaterial color="#3aa6c9" roughness={0.2} metalness={0.1} />
+        </mesh>
+        {[
+          [-3.5, -3],
+          [-3.5, 3],
+        ].map(([bx, bz]) => (
+          <mesh key={`${bx}${bz}`} position={[bx as number, 0.35, bz as number]}>
+            <boxGeometry args={[1.6, 0.2, 0.5]} />
+            <meshStandardMaterial color="#8a5a34" />
+          </mesh>
+        ))}
       </group>
     </group>
   );
@@ -482,7 +435,7 @@ function SceneLighting({
   return (
     <group>
       {/* a small constant floor so the city is never near-black, even at the 05:45 night start */}
-      <ambientLight intensity={0.45} />
+      <ambientLight intensity={0.6} />
       <hemisphereLight
         color={sky.hemi.sky}
         groundColor={sky.hemi.ground}
@@ -505,6 +458,8 @@ function SceneLighting({
 
 export type City3DProps = CityViewProps & {
   simClock?: { day: number; slotIndex: number; label: string };
+  /** bump to re-fit the camera ("Fit city") */
+  fitKey?: number;
 };
 
 export function City3D(props: City3DProps): JSX.Element {
@@ -520,6 +475,7 @@ export function City3D(props: City3DProps): JSX.Element {
   const [hovered, setHovered] = useState<SectorId | null>(null);
   const [selected, setSelected] = useState<SectorId | null>(null);
   const [rotationStep, setRotationStep] = useState(0);
+  const fitKey = props.fitKey ?? 0;
 
   const label = simClock?.label;
   const sky = useMemo(() => skyFor(label), [label]);
@@ -564,12 +520,12 @@ export function City3D(props: City3DProps): JSX.Element {
         shadows={shadows}
         gl={{ alpha: true, antialias: true }}
       >
-        <IsoCamera rotationStep={rotationStep} />
+        <IsoCamera rotationStep={rotationStep} fitKey={fitKey} />
         <MapControls
           makeDefault
           enableRotate={false}
-          minZoom={3}
-          maxZoom={16}
+          minZoom={1.5}
+          maxZoom={24}
           target={[CX, 0, CZ]}
           enableDamping
           dampingFactor={0.15}
@@ -587,7 +543,7 @@ export function City3D(props: City3DProps): JSX.Element {
           onSelect={handleSelect}
         />
         <Buildings glow={glow && !xray} />
-        <Trees />
+        <Greenery />
         <Landmarks />
         {!spectator && (
           <SectorLabels sectorStatus={sectorStatus} hovered={hovered} selected={selected} />

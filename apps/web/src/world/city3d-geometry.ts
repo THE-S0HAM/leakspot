@@ -51,7 +51,11 @@ function pick<T>(rng: () => number, arr: readonly T[]): T {
 }
 
 /** Build every sector's 3D buildings once (seed 42). Landmarks (hospital/school/depot) are separate. */
-export function buildCity3D(seed = 42): { sector: Sector; buildings: Building3D[] }[] {
+export type Garden = { cx: number; cz: number; w: number; d: number };
+
+export function buildCity3D(
+  seed = 42,
+): { sector: Sector; buildings: Building3D[]; gardens: Garden[] }[] {
   const rng = mulberry32(seed);
   return SECTORS.map((sector) => {
     const spec = ZONE_SPEC[sector.zone];
@@ -59,13 +63,18 @@ export function buildCity3D(seed = 42): { sector: Sector; buildings: Building3D[
     const cellW = (xMax - xMin - GAP * (COLS + 1)) / COLS;
     const cellD = (zMax - zMin - GAP * (ROWS + 1)) / ROWS;
     const buildings: Building3D[] = [];
+    const gardens: Garden[] = [];
     for (let r = 0; r < ROWS; r += 1) {
       for (let c = 0; c < COLS; c += 1) {
-        if (rng() < 0.12) continue; // leave a gap for a yard/street
-        const w = cellW * (0.72 + rng() * 0.22);
-        const d = cellD * (0.72 + rng() * 0.22);
         const cx = xMin + GAP * (c + 1) + cellW * c + cellW / 2;
         const cz = zMin + GAP * (r + 1) + cellD * r + cellD / 2;
+        if (rng() < 0.14) {
+          // an empty plot becomes a garden (lawn + trees)
+          gardens.push({ cx, cz, w: cellW * 0.9, d: cellD * 0.9 });
+          continue;
+        }
+        const w = cellW * (0.72 + rng() * 0.22);
+        const d = cellD * (0.72 + rng() * 0.22);
         const type = pick(rng, spec.types);
         const [fMin, fMax] = spec.floors;
         const floors = type === "shop" ? 1 : fMin + Math.floor(rng() * (fMax - fMin + 1));
@@ -82,7 +91,7 @@ export function buildCity3D(seed = 42): { sector: Sector; buildings: Building3D[
         });
       }
     }
-    return { sector, buildings };
+    return { sector, buildings, gardens };
   });
 }
 

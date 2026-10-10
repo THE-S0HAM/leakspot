@@ -15,3 +15,6 @@ recordings/
 .env.*
 !.env.deploy.example
 *.tsbuildinfo
+
+# Playwright visual checks
+apps/web/e2e/screenshots/

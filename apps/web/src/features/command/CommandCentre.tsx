@@ -84,6 +84,7 @@ export function CommandCentre(): JSX.Element {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<1 | 2 | 4>(1);
   const [xray, setXray] = useState(false);
+  const [fitKey, setFitKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>("incidents");
   const [selected, setSelected] = useState<SectorId | null>(null);
@@ -519,6 +520,7 @@ export function CommandCentre(): JSX.Element {
           xray={xray}
           viewBox={viewBox}
           simClock={state.simClock}
+          fitKey={fitKey}
           onSelectSector={selectSector}
           onHoverSector={setHover}
           onSelectReport={setSelectedReport}
@@ -674,7 +676,13 @@ export function CommandCentre(): JSX.Element {
         >
           X-ray
         </PixelButton>
-        <PixelButton variant="secondary" onClick={() => selectSector(null)}>
+        <PixelButton
+          variant="secondary"
+          onClick={() => {
+            selectSector(null);
+            setFitKey((k) => k + 1);
+          }}
+        >
           Fit city
         </PixelButton>
         <PixelButton variant="secondary" onClick={() => setConfirmNewRun(true)}>
