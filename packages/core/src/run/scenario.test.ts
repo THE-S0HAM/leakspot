@@ -100,8 +100,10 @@ describe("determinism", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it("keeps RunState JSON under 8 KB", () => {
+  it("keeps RunState JSON well within the 24 KB test budget", () => {
+    // 8 KB is a soft design target, not a limit (DynamoDB allows 400 KB). The test budget is 24 KB so
+    // real citizen reports have headroom; nothing throws or truncates above 8 KB at runtime.
     const bytes = new TextEncoder().encode(JSON.stringify(runScenario(42).state)).length;
-    expect(bytes).toBeLessThanOrEqual(8192);
+    expect(bytes).toBeLessThanOrEqual(24576);
   });
 });

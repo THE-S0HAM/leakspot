@@ -132,6 +132,23 @@ export function isDayOver(state: RunState): boolean {
   return state.clock.day >= SCENARIO_DAY && state.clock.slotIndex >= SLOTS_PER_DAY - 1;
 }
 
+/**
+ * Advance up to `count` slots, clamping to the slots left in the day: a batch that straddles 20:00 runs
+ * out the remaining slots instead of failing. Throws DomainConflict only when the day is already over
+ * (no slot left). The last events are returned.
+ */
+export function tickMany(state: RunState, context: RunContext, count: number): ReducerResult {
+  if (isDayOver(state)) throw new DomainConflict("The day is over");
+  let s = state;
+  let events: RunEvent[] = [];
+  for (let i = 0; i < count && !isDayOver(s); i += 1) {
+    const result = tick(s, context);
+    s = result.state;
+    events = result.events;
+  }
+  return { state: s, events };
+}
+
 export function tick(state: RunState, context: RunContext): ReducerResult {
   if (isDayOver(state)) {
     throw new DomainConflict("The day is over");

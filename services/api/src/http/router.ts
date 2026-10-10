@@ -18,7 +18,7 @@ import {
   getContext,
   repair,
   setAutopilot,
-  tick,
+  tickMany,
   type Incident,
   type ReportInput,
   type RunState,
@@ -287,11 +287,11 @@ async function routeRun(
     if (!parsed.success) return err(400, "VALIDATION", "count must be an integer 1–4");
     const context = getContext(42);
     try {
-      const result = await mutate(deps, runId, (state) => {
-        let s = state;
-        for (let i = 0; i < parsed.data.count; i += 1) s = tick(s, context).state;
-        return s;
-      });
+      const result = await mutate(
+        deps,
+        runId,
+        (state) => tickMany(state, context, parsed.data.count).state,
+      );
       return "state" in result
         ? { status: 200, body: { runId, ...(fullState(result.state) as object) } }
         : result;

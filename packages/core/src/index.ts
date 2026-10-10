@@ -24,6 +24,7 @@ export {
   getContext,
   isDayOver,
   tick,
+  tickMany,
   addReport,
   dispatch,
   repair,
