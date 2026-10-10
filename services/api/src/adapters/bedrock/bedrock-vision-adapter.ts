@@ -3,8 +3,8 @@
 // copy of the system prompt and the reply parser, so the probe and the worker share identical logic.
 
 import {
+  BedrockRuntimeClient,
   ConverseCommand,
-  type BedrockRuntimeClient,
   type ContentBlock,
   type ConverseCommandInput,
   type ConverseCommandOutput,
@@ -159,16 +159,19 @@ function failureFromError(error: unknown): VisionResult {
 }
 
 export type BedrockVisionAdapterOptions = {
-  client: BedrockRuntimeClient;
+  /** Injected for tests/probe; the handler omits it and gets a default client built here. */
+  client?: BedrockRuntimeClient;
   modelId: BedrockModelId;
 };
 
 /**
- * Creates the VisionPort backed by Bedrock Converse. The client is injected so tests can mock it and the
- * probe can pass one built for its own profile and region. `classify` never rejects.
+ * Creates the VisionPort backed by Bedrock Converse. The client may be injected (tests mock it; the
+ * probe builds one for its own profile), or defaulted here so handlers never import @aws-sdk directly
+ * (dependency rules). `classify` never rejects.
  */
 export function createBedrockVisionAdapter(options: BedrockVisionAdapterOptions): VisionPort {
-  const { client, modelId } = options;
+  const client = options.client ?? new BedrockRuntimeClient({});
+  const { modelId } = options;
 
   // Resolves to a final result (success or thrown-error failure), or null when the reply did not parse.
   async function attempt(jpeg: Uint8Array, retry: boolean): Promise<VisionResult | null> {

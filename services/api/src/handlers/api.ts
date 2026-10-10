@@ -1,13 +1,19 @@
-// Lambda entry point for the API, invoked through a buffered Function URL (payload format 2.0).
-// It adapts the Function URL event to the pure router and formats the router result as an
-// HTTP response. No AWS SDK here; keeping the handler thin keeps the router unit-testable.
+// Lambda entry point, invoked through a buffered Function URL (payload format 2.0). It builds the real
+// AWS adapters once per cold start, adapts the Function URL event to the router, and formats the result.
+// Config and adapters live at module scope so warm invocations reuse them.
 
-import { route, stripApiPrefix, type RouterResult } from "../http/router";
+import { loadConfig } from "../config";
+import { createBedrockVisionAdapter } from "../adapters/bedrock/bedrock-vision-adapter";
+import { createDynamoRunStore } from "../adapters/dynamo/dynamo-run-store";
+import { createS3PhotoStore } from "../adapters/s3/s3-photo-store";
+import { route, stripApiPrefix, type RouterDeps, type RouterResult } from "../http/router";
 
-// Minimal shape of the Function URL / API Gateway v2 request we rely on. We only read the
-// method and raw path; declaring just these avoids a dependency on @types/aws-lambda.
 type FunctionUrlEvent = {
   rawPath?: string;
+  rawQueryString?: string;
+  headers?: Record<string, string | undefined>;
+  body?: string;
+  isBase64Encoded?: boolean;
   requestContext?: { http?: { method?: string } };
 };
 
@@ -17,11 +23,56 @@ type FunctionUrlResponse = {
   body: string;
 };
 
+const config = loadConfig();
+const region = process.env["AWS_REGION"] ?? "ap-south-1";
+
+const deps: RouterDeps = {
+  runStore: createDynamoRunStore({ tableName: config.tableName }),
+  photoStore: createS3PhotoStore({ bucket: config.photoBucket }),
+  vision: createBedrockVisionAdapter({ modelId: config.bedrockModelId }),
+  commandCodeSha256: config.commandCodeSha256,
+  appVersion: config.appVersion,
+  region,
+  bedrockModel: config.bedrockModelId,
+  dailyCap: config.bedrockDailyCap,
+};
+
 export async function handler(event: FunctionUrlEvent): Promise<FunctionUrlResponse> {
   const method = event.requestContext?.http?.method ?? "GET";
-  const rawPath = event.rawPath ?? "/";
-  const result = route({ method, path: stripApiPrefix(rawPath) });
+  const path = stripApiPrefix(event.rawPath ?? "/");
+  const headers = normaliseHeaders(event.headers ?? {});
+  const body = parseBody(event);
+
+  let result: RouterResult;
+  try {
+    result = await route({ method, path, headers, body }, deps);
+  } catch {
+    result = {
+      status: 500,
+      body: { error: { code: "INTERNAL", message: "Something went wrong" } },
+    };
+  }
   return toResponse(result);
+}
+
+function normaliseHeaders(
+  headers: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const lower: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(headers)) lower[key.toLowerCase()] = value;
+  return lower;
+}
+
+function parseBody(event: FunctionUrlEvent): unknown {
+  if (!event.body) return undefined;
+  const text = event.isBase64Encoded
+    ? Buffer.from(event.body, "base64").toString("utf8")
+    : event.body;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
 }
 
 function toResponse(result: RouterResult): FunctionUrlResponse {

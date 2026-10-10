@@ -38,6 +38,7 @@ export type {
   SlotRef,
   SectorRuntime,
   ReportRecord,
+  PendingReport,
   Crew,
   CrewStatus,
   ReducerResult,

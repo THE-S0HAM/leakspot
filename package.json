@@ -18,7 +18,8 @@
     "test": "vitest run",
     "typecheck": "node scripts/typecheck.mjs",
     "dev": "node scripts/dev.mjs",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node scripts/deploy.mjs",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

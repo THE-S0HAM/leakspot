@@ -13,22 +13,30 @@ function roundTrip(state: RunState): RunState {
   return JSON.parse(JSON.stringify(state)) as RunState;
 }
 
+// Rebuilding the history model on every tick (as a fresh Lambda would) is deliberately heavy, so these
+// two tests get a generous timeout; they are correctness checks, not performance checks.
+const SLOW = 30000;
+
 describe("stateless round trip (fresh Lambda per request)", () => {
-  it("ends identically when state is reserialised and context rebuilt after every step", () => {
-    // Reference: the ordinary in-memory run.
-    const reference = runScenario(42).state;
+  it(
+    "ends identically when state is reserialised and context rebuilt after every step",
+    { timeout: SLOW },
+    () => {
+      // Reference: the ordinary in-memory run.
+      const reference = runScenario(42).state;
 
-    // Round-tripped run: serialise state and rebuild the context from the seed on each tick.
-    let state = roundTrip(setAutopilot(createRun(42).state, true).state);
-    for (let slotIndex = 0; slotIndex <= 19; slotIndex += 1) {
-      const context = rebuildContext(42); // fresh, seed-only context — no runtime carry-over
-      state = roundTrip(tick(state, context).state);
-    }
+      // Round-tripped run: serialise state and rebuild the context from the seed on each tick.
+      let state = roundTrip(setAutopilot(createRun(42).state, true).state);
+      for (let slotIndex = 0; slotIndex <= 19; slotIndex += 1) {
+        const context = rebuildContext(42); // fresh, seed-only context — no runtime carry-over
+        state = roundTrip(tick(state, context).state);
+      }
 
-    expect(JSON.stringify(state)).toBe(JSON.stringify(reference));
-  });
+      expect(JSON.stringify(state)).toBe(JSON.stringify(reference));
+    },
+  );
 
-  it("still reaches the documented outcome through the round trip", () => {
+  it("still reaches the documented outcome through the round trip", { timeout: SLOW }, () => {
     let state = roundTrip(setAutopilot(createRun(42).state, true).state);
     for (let slotIndex = 0; slotIndex <= 19; slotIndex += 1) {
       state = roundTrip(tick(state, rebuildContext(42)).state);

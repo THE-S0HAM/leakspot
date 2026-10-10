@@ -93,6 +93,7 @@ export function createRun(seed = 42): CreateRunResult {
     nextIncidentNumber: 1,
     repairedLeakIds: [],
     appliedReports: [],
+    pendingReports: [],
   };
 
   const context: RunContext = { seed, history: buildHistoryModel(seed), leaks: leakDefs() };

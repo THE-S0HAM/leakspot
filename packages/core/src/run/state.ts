@@ -75,6 +75,20 @@ export type RunState = {
   repairedLeakIds: string[];
   /** ids of scripted NPC reports already applied by tick (each applied exactly once). */
   appliedReports: string[];
+  /**
+   * Citizen reports created but not yet classified (api-contract.md two-step create → classify). Kept
+   * here so the two requests round-trip through DynamoDB on a stateless Lambda. Cleared on classify.
+   */
+  pendingReports: PendingReport[];
+};
+
+/** A report awaiting classification: enough to fuse it once the photo is classified. */
+export type PendingReport = {
+  id: string;
+  type: "leak_photo" | "low_water";
+  x: number;
+  z: number;
+  selfChoice?: "flowing" | "dripping" | "weak_flow" | "no_water";
 };
 
 /**

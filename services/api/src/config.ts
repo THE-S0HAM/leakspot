@@ -1,8 +1,9 @@
-// Validates process.env once per Lambda role (api | worker) with zod and returns a
-// frozen, cached Config. A bad environment fails fast with a message that names every
-// offending variable and its rule, never echoing a supplied value (which may be a secret).
+// Validates process.env once with zod and returns a frozen, cached Config (deadline-mode: one API
+// Lambda, no worker, no sessions). A bad environment fails fast with a message that names every
+// offending variable and its rule, never echoing a supplied value (COMMAND_CODE_SHA256 is a hash, but
+// we still avoid printing it). Env comes from the CDK stack: TABLE_NAME, PHOTO_BUCKET, BEDROCK_MODEL_ID,
+// COMMAND_CODE_SHA256, APP_VERSION (+ optional LOG_LEVEL, BEDROCK_DAILY_CAP).
 
-import { Buffer } from "node:buffer";
 import { z } from "zod";
 
 const PRIMARY_MODEL_ID = "global.amazon.nova-2-lite-v1:0";
@@ -11,21 +12,16 @@ const FALLBACK_MODEL_ID = "apac.amazon.nova-lite-v1:0";
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 const MODEL_IDS = [PRIMARY_MODEL_ID, FALLBACK_MODEL_ID] as const;
 
-const MIN_SESSION_SECRET_BYTES = 32;
-const MAX_DAILY_CAP = Number.MAX_SAFE_INTEGER; // 2^53 - 1
+const MAX_DAILY_CAP = Number.MAX_SAFE_INTEGER;
 
 export type Config = {
-  role: "api" | "worker";
   tableName: string;
-  dataBucket: string;
+  photoBucket: string;
   appVersion: string;
-  logLevel: (typeof LOG_LEVELS)[number]; // default "info"
-  bedrockModelId: (typeof MODEL_IDS)[number]; // default primary
-  bedrockDailyCap: number; // default 300; digits only, 1..2^53-1
-  // api role only:
-  commandCodeSha256?: string;
-  sessionSecret?: string;
-  workerFunctionName?: string;
+  logLevel: (typeof LOG_LEVELS)[number];
+  bedrockModelId: (typeof MODEL_IDS)[number];
+  bedrockDailyCap: number;
+  commandCodeSha256: string;
 };
 
 const nonWhitespace = (variable: string): z.ZodString =>
@@ -64,82 +60,37 @@ const commandCodeSha256Schema = z
   .string()
   .regex(/^[0-9a-f]{64}$/, "COMMAND_CODE_SHA256 must be exactly 64 lowercase hex characters");
 
-const sessionSecretSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9_-]+$/, "SESSION_SECRET must contain only base64url characters (no padding)")
-  .refine(
-    (value) => Buffer.from(value, "base64url").length >= MIN_SESSION_SECRET_BYTES,
-    `SESSION_SECRET must decode to at least ${MIN_SESSION_SECRET_BYTES} bytes`,
-  );
-
-const commonShape = {
+const schema = z.object({
   TABLE_NAME: nonWhitespace("TABLE_NAME"),
-  DATA_BUCKET: nonWhitespace("DATA_BUCKET"),
+  PHOTO_BUCKET: nonWhitespace("PHOTO_BUCKET"),
   APP_VERSION: nonWhitespace("APP_VERSION"),
   LOG_LEVEL: logLevelSchema,
   BEDROCK_MODEL_ID: modelIdSchema,
   BEDROCK_DAILY_CAP: dailyCapSchema,
-};
-
-const apiSchema = z.object({
-  ...commonShape,
   COMMAND_CODE_SHA256: commandCodeSha256Schema,
-  SESSION_SECRET: sessionSecretSchema,
-  WORKER_FUNCTION_NAME: nonWhitespace("WORKER_FUNCTION_NAME"),
 });
 
-const workerSchema = z.object(commonShape);
+let cached: Config | undefined;
 
-const cache: { api?: Config; worker?: Config } = {};
-
-/**
- * Validates process.env for the given role and returns a frozen Config. On the first
- * successful call per role the result is cached and returned (===) on later calls
- * without re-reading process.env. On failure it throws once and caches nothing.
- */
-export function loadConfig(role: "api" | "worker"): Config {
-  const cached = cache[role];
+/** Validate process.env and return a frozen Config; cached (===) after the first success. */
+export function loadConfig(): Config {
   if (cached) return cached;
-
-  const config = role === "api" ? loadApiConfig() : loadWorkerConfig();
-  const frozen = Object.freeze(config);
-  cache[role] = frozen;
-  return frozen;
-}
-
-function loadApiConfig(): Config {
-  const env = parseOrThrow(apiSchema, "api");
-  return {
-    role: "api",
+  const env = parseOrThrow();
+  cached = Object.freeze({
     tableName: env.TABLE_NAME,
-    dataBucket: env.DATA_BUCKET,
+    photoBucket: env.PHOTO_BUCKET,
     appVersion: env.APP_VERSION,
     logLevel: env.LOG_LEVEL,
     bedrockModelId: env.BEDROCK_MODEL_ID,
     bedrockDailyCap: env.BEDROCK_DAILY_CAP,
     commandCodeSha256: env.COMMAND_CODE_SHA256,
-    sessionSecret: env.SESSION_SECRET,
-    workerFunctionName: env.WORKER_FUNCTION_NAME,
-  };
+  });
+  return cached;
 }
 
-function loadWorkerConfig(): Config {
-  const env = parseOrThrow(workerSchema, "worker");
-  return {
-    role: "worker",
-    tableName: env.TABLE_NAME,
-    dataBucket: env.DATA_BUCKET,
-    appVersion: env.APP_VERSION,
-    logLevel: env.LOG_LEVEL,
-    bedrockModelId: env.BEDROCK_MODEL_ID,
-    bedrockDailyCap: env.BEDROCK_DAILY_CAP,
-  };
-}
-
-function parseOrThrow<T extends z.ZodTypeAny>(schema: T, role: string): z.infer<T> {
+function parseOrThrow(): z.infer<typeof schema> {
   const result = schema.safeParse(process.env);
   if (result.success) return result.data;
-
   const details = result.error.issues
     .map((issue) => {
       const variable = issue.path[0];
@@ -147,14 +98,10 @@ function parseOrThrow<T extends z.ZodTypeAny>(schema: T, role: string): z.infer<
       return `${name}: ${issue.message}`;
     })
     .join("; ");
-  throw new Error(`Invalid environment for role "${role}": ${details}`);
+  throw new Error(`Invalid API environment: ${details}`);
 }
 
-/**
- * Test-only: clears the per-role cache so a test can validate both roles and error paths
- * against a freshly mutated process.env. Not used by production code.
- */
+/** Test-only: clear the cache so a test can validate error paths against a mutated process.env. */
 export function __resetConfigCacheForTests(): void {
-  delete cache.api;
-  delete cache.worker;
+  cached = undefined;
 }
