@@ -20,6 +20,7 @@ export type { SectorStatus } from "./engine/types";
 
 export {
   createRun,
+  rebuildContext,
   tick,
   addReport,
   dispatch,
@@ -29,6 +30,7 @@ export {
   DomainConflict,
 } from "./run/reducers";
 export type { ReportInput, CreateRunResult } from "./run/reducers";
+export { runScenario } from "./run/scenario";
 export type {
   RunState,
   RunContext,

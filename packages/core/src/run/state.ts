@@ -6,7 +6,7 @@
 import type { SectorId } from "../world/jaldhara";
 import type { Incident } from "../engine/incidents";
 import type { SectorStatus } from "../engine/types";
-import type { ActiveLeak } from "../sim/leaks";
+import type { LeakDef } from "../sim/leaks";
 import type { HistoryModel } from "./history";
 
 /** { day, slotIndex }; slotIndex 0–19, or -1 for the dry "before slot 0" state. */
@@ -49,6 +49,8 @@ export type ReportRecord = {
   selfReported: boolean;
   incidentId?: string;
   label?: string;
+  /** true for scripted NPC reports applied by tick. */
+  scripted?: boolean;
   /** low-water report position, kept for the pending-cluster rule. */
   position?: { x: number; z: number };
 };
@@ -69,13 +71,21 @@ export type RunState = {
   recentEvents: RunEvent[];
   /** monotonic counter for incident ids within the run. */
   nextIncidentNumber: number;
+  /** ground-truth leak ids repaired so far — a runtime fact, so it lives in state, not context. */
+  repairedLeakIds: string[];
+  /** ids of scripted NPC reports already applied by tick (each applied exactly once). */
+  appliedReports: string[];
 };
 
-/** Non-serialized, seed-derived context: the history model and the sim's active-leak ground truth. */
+/**
+ * Non-serialized, seed-derived context: PURE data only (history, baselines, building medians and the
+ * leak definitions). It holds no runtime facts, so rebuilding it from the seed on a fresh Lambda yields
+ * an identical context every time. All runtime state round-trips through RunState (DynamoDB).
+ */
 export type RunContext = {
   seed: number;
   history: HistoryModel;
-  leaks: ActiveLeak[];
+  leaks: LeakDef[];
 };
 
 export type ReducerResult = { state: RunState; events: RunEvent[] };

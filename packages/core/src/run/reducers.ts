@@ -30,13 +30,14 @@ import { resolvePhotoLabel, resolveSelfReported } from "../engine/vision";
 import type { SectorStatus } from "../engine/types";
 import { SLOTS_PER_DAY } from "../sim/demand";
 import {
-  initialLeaks,
-  repairLeakAt,
+  leakDefs,
+  leakRepairedBy,
   sectorLeakVolume,
   visibleActiveLeaks,
-  type ActiveLeak,
+  type LeakDef,
 } from "../sim/leaks";
 import { generateSectorReadings } from "../sim/readings";
+import { SCRIPTED_REPORTS, type ScriptedReport } from "../sim/script";
 import { slotIndexToLabel } from "../units";
 import { buildHistoryModel, baselineKey } from "./history";
 import type {
@@ -90,10 +91,17 @@ export function createRun(seed = 42): CreateRunResult {
     reports: [],
     recentEvents: [],
     nextIncidentNumber: 1,
+    repairedLeakIds: [],
+    appliedReports: [],
   };
 
-  const context: RunContext = { seed, history: buildHistoryModel(seed), leaks: initialLeaks() };
+  const context: RunContext = { seed, history: buildHistoryModel(seed), leaks: leakDefs() };
   return { state, context };
+}
+
+/** Rebuild the pure, seed-derived context on a fresh Lambda. Holds no runtime state (see RunContext). */
+export function rebuildContext(seed: number): RunContext {
+  return { seed, history: buildHistoryModel(seed), leaks: leakDefs() };
 }
 
 export function setAutopilot(state: RunState, on: boolean): ReducerResult {
@@ -112,9 +120,17 @@ export function tick(state: RunState, context: RunContext): ReducerResult {
   next.clockLabel = slotIndexToLabel(slot.slotIndex);
   next.supplyOn = true;
 
+  const repaired = new Set(next.repairedLeakIds);
+
   // 1) Readings → balance → anomaly → status, per sector.
   for (const runtime of next.sectors) {
-    const leakVolume = sectorLeakVolume(context.leaks, runtime.id, slot.day, slot.slotIndex);
+    const leakVolume = sectorLeakVolume(
+      context.leaks,
+      repaired,
+      runtime.id,
+      slot.day,
+      slot.slotIndex,
+    );
     const readings = generate(context, slot, runtime.id, leakVolume);
     const medians =
       context.history.buildingMedians.get(baselineKey(runtime.id, slot.slotIndex)) ?? [];
@@ -145,18 +161,63 @@ export function tick(state: RunState, context: RunContext): ReducerResult {
     }
   }
 
-  // 3) Verification progress for verifying incidents.
+  // 3) Apply the scripted NPC reports due this slot (each exactly once, marked scripted). The API only
+  //    calls tick, so tick owns report injection; appliedReports in RunState keeps it idempotent.
+  applyScriptedReportsForSlot(next, slot, events);
+
+  // 4) Verification progress for verifying incidents.
   progressVerification(next, context, slot, events);
 
-  // 4) Autopilot crew + crew transitions.
+  // 5) Autopilot crew + crew transitions.
   advanceCrew(next, slot, events);
   if (next.autopilot) runAutopilot(next, context, slot, events);
 
-  // 5) Recompute scores, verdicts, city health.
+  // 6) Recompute scores, verdicts, city health.
   rescoreAll(next);
   recomputeCityHealth(next);
 
   return finish(next, events);
+}
+
+/** The scripted-report key is its day+slot+index, so each applies exactly once across ticks. */
+function scriptedKey(report: ScriptedReport, index: number): string {
+  return `S${report.day}-${report.slotIndex}-${index}`;
+}
+
+/** Convert a scripted report to a reducer ReportInput using its scenario (FakeVision) label. */
+function scriptedToInput(report: ScriptedReport, key: string): ReportInput {
+  if (report.type === "low_water") {
+    return {
+      id: key,
+      type: "low_water",
+      position: report.position,
+      sectorId: report.sector,
+      selfChoice: report.selfChoice,
+    };
+  }
+  return {
+    id: key,
+    type: "leak_photo",
+    position: report.position,
+    sectorId: report.sector,
+    label: report.scenarioLabel,
+    confidence: 1,
+    selfChoice: report.selfChoice === "dripping" ? "dripping" : "flowing",
+  };
+}
+
+/** Apply (once) every scripted report scheduled for the slot just produced. Mutates `state` in place. */
+function applyScriptedReportsForSlot(state: RunState, slot: SlotRef, events: RunEvent[]): void {
+  const applied = new Set(state.appliedReports);
+  for (let index = 0; index < SCRIPTED_REPORTS.length; index += 1) {
+    const report = SCRIPTED_REPORTS[index];
+    if (!report || report.day !== slot.day || report.slotIndex !== slot.slotIndex) continue;
+    const key = scriptedKey(report, index);
+    if (applied.has(key)) continue;
+    applyReportInPlace(state, scriptedToInput(report, key), true, events);
+    state.appliedReports.push(key);
+    applied.add(key);
+  }
 }
 
 export function addReport(
@@ -165,15 +226,32 @@ export function addReport(
 ): ReducerResult & { reportId: string } {
   const next = clone(state);
   const events: RunEvent[] = [];
-  const reportId = input.id ?? `R${next.reports.length + 1}`;
-  const sector = sectorOfPoint(input.position, input.sectorId);
+  const reportId = applyReportInPlace(next, input, input.scripted ?? false, events);
+  rescoreAll(next);
+  recomputeCityHealth(next);
+  return attach(finish(next, events), reportId);
+}
 
+/**
+ * Apply one report to `state` in place: resolve the vision label (or self-reported fallback), run the
+ * fusion rules (§6) and record the report. Returns the report id. Shared by the addReport reducer and
+ * the tick's scripted-report injection; callers run rescore/recompute afterwards.
+ */
+function applyReportInPlace(
+  state: RunState,
+  input: ReportInput,
+  scripted: boolean,
+  events: RunEvent[],
+): string {
+  const reportId = input.id ?? `R${state.reports.length + 1}`;
+  const sector = sectorOfPoint(input.position, input.sectorId);
   const record: ReportRecord = {
     id: reportId,
     type: input.type,
     sectorId: sector,
     rejected: false,
     selfReported: false,
+    scripted,
   };
 
   if (input.type === "leak_photo") {
@@ -184,19 +262,17 @@ export function addReport(
     record.label = resolved.label;
     if (resolved.rejected) {
       record.rejected = true;
-      next.reports.push(record);
-      events.push(event(slotRefOf(next), "report", `Report ${reportId} rejected (not a leak)`));
-      return attach(finish(next, events), reportId);
+      state.reports.push(record);
+      events.push(event(slotRefOf(state), "report", `Report ${reportId} rejected (not a leak)`));
+      return reportId;
     }
-    attachLeakPhoto(next, sector, input.position, resolved, slotRefOf(next), events, record);
+    attachLeakPhoto(state, sector, input.position, resolved, slotRefOf(state), events, record);
   } else {
-    attachLowWater(next, sector, input.position, slotRefOf(next), events, record);
+    attachLowWater(state, sector, input.position, slotRefOf(state), events, record);
   }
 
-  next.reports.push(record);
-  rescoreAll(next);
-  recomputeCityHealth(next);
-  return attach(finish(next, events), reportId);
+  state.reports.push(record);
+  return reportId;
 }
 
 export function dispatch(state: RunState, incidentId: string): ReducerResult {
@@ -242,6 +318,8 @@ export type ReportInput = {
   confidence?: number;
   selfReported?: boolean;
   selfChoice?: "flowing" | "dripping" | "weak_flow" | "no_water";
+  /** marks a scripted NPC report (set by tick); public reports omit it. */
+  scripted?: boolean;
 };
 
 // ---------- internals ----------
@@ -568,8 +646,16 @@ function applyRepair(state: RunState, context: RunContext, incident: Incident): 
     runtime?.status === "confirmed" ||
     runtime?.status === "verifying";
 
-  // Tell the sim which ground-truth leak this fixes.
-  repairLeakAt(context.leaks, incident.sectorId, incident.pin, incident.kind === "hidden");
+  // Record which ground-truth leak this fixes in RunState (a runtime fact, so it round-trips).
+  const repaired = new Set(state.repairedLeakIds);
+  const fixedId = leakRepairedBy(
+    context.leaks,
+    repaired,
+    incident.sectorId,
+    incident.pin,
+    incident.kind === "hidden",
+  );
+  if (fixedId && !repaired.has(fixedId)) state.repairedLeakIds.push(fixedId);
 
   incident.excessLitresPerDayAtRepair = runtime?.excessLitresPerDay ?? 0;
 
@@ -591,7 +677,14 @@ function progressVerification(
   for (const incident of state.incidents) {
     if (incident.status !== "verifying") continue;
     const runtime = state.sectors.find((s) => s.id === incident.sectorId);
-    const leakVolume = sectorLeakVolume(context.leaks, incident.sectorId, slot.day, slot.slotIndex);
+    const repaired = new Set(state.repairedLeakIds);
+    const leakVolume = sectorLeakVolume(
+      context.leaks,
+      repaired,
+      incident.sectorId,
+      slot.day,
+      slot.slotIndex,
+    );
     const readings = generate(context, slot, incident.sectorId, leakVolume);
     const medians =
       context.history.buildingMedians.get(baselineKey(incident.sectorId, slot.slotIndex)) ?? [];
@@ -799,8 +892,9 @@ function formatLakh(litres: number): string {
 export function currentVisibleLeaks(
   context: RunContext,
   clock: SlotRef,
+  repairedLeakIds: readonly string[] = [],
 ): { x: number; z: number; size: number }[] {
-  return visibleActiveLeaks(context.leaks, clock.day, clock.slotIndex);
+  return visibleActiveLeaks(context.leaks, new Set(repairedLeakIds), clock.day, clock.slotIndex);
 }
 
-export type { ActiveLeak };
+export type { LeakDef };
