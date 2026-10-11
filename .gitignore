@@ -2,7 +2,7 @@ node_modules/
 dist/
 cdk.out/
 infra/cdk-outputs.json
-images/
+/images/
 coverage/
 playwright-report/
 test-results/
