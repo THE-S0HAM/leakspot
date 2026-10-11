@@ -102,7 +102,7 @@ export function KpiStrip({ stats }: { stats: StatsResponse | undefined }): JSX.E
         label="Water recovered"
         value={t.litresRecoveredPerDay}
         format={(n) => `${lakhNum(n)} lakh L/day`}
-        sub={`≈ ${num(tankerLoadsPerMonth(t.litresRecoveredPerDay))} tanker-loads a month`}
+        sub={`≈ ${num(tankerLoadsPerMonth(t.litresRecoveredPerDay))} tankers a month`}
         spark={pick((x) => x.litresRecoveredPerDay)}
         color={CHART_COLORS.jal}
         keepSub

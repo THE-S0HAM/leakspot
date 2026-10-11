@@ -96,6 +96,8 @@ simulated. Your phone reports and the AI photo checks are real.
 The landing page and **[/metrics](https://d16l2tljxlr7ci.cloudfront.net/metrics)** show live numbers
 from every run anyone has played, refreshed every 15 seconds.
 
+![The live /metrics page: KPI tiles, water recovered per day, found vs resolved, score profile, funnel, histograms, AI labels and recent runs](docs/images/metrics-live.jpg)
+
 **What is counted, per run:** leaks found (by kind), dispatched, repaired, verified and closed as
 logged; litres per day recovered at verification; leaks found by meters alone; phone and simulated
 reports; AI photo checks by label; every incident's priority score; the score components (W, E, C, K)
