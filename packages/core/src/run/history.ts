@@ -1,6 +1,6 @@
 // Precompute per-sector baselines and per-building medians from days 1–14 (no leaks). This lives in
 // run/ (not engine/) because it drives the sim to generate history; the engine only consumes the
-// resulting baselines and medians. Recomputed on createRun, never stored (deadline-mode). Pure in seed.
+// resulting baselines and medians. Recomputed on createRun, never stored. Pure in seed.
 
 import { SECTORS, type SectorId } from "../world/jaldhara";
 import { computeBaseline } from "../engine/baseline";

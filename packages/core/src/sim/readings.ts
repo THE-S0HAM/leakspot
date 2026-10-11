@@ -1,4 +1,4 @@
-// Reading generation (domain-engine.md §2): for a sector at (day, slot), produce 15 building meter
+// Reading generation: for a sector at (day, slot), produce 15 building meter
 // readings (each independently missing with p = 0.02) and the sector inlet reading, which includes the
 // background loss and any active leak volume. Deterministic given the run seed. GROUND TRUTH stays
 // implicit: the engine sees only the returned readings, not the leak list.

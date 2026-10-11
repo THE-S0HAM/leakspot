@@ -1,6 +1,6 @@
-// Command access-code check (security-and-access.md): the client sends x-leakspot-code; we compare
-// SHA-256(trim + uppercase code) against COMMAND_CODE_SHA256 in constant time. No sessions in
-// deadline mode — each command request carries the code header.
+// Command access-code check: the client sends x-leakspot-code; we compare
+// SHA-256(trim + uppercase code) against COMMAND_CODE_SHA256 in constant time. There are no
+// sessions: each command request carries the code header.
 
 import { createHash, timingSafeEqual } from "node:crypto";
 

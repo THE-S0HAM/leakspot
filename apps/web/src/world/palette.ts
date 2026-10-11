@@ -30,7 +30,7 @@ export const STATUS_HEX: Record<SectorStatus, string> = {
   verified: HEX.neem,
 };
 
-// Subtle zone ground tints so zones still read on the diorama slab (plan PART 1a).
+// Subtle zone ground tints so zones still read on the diorama slab.
 // A ochre, B terracotta, C slate, D indigo — low-saturation so status overlays stay legible.
 export const ZONE_GROUND: Record<ZoneId, string> = {
   A: "#a9b58a",

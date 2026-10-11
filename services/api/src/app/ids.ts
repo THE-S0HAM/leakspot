@@ -1,4 +1,4 @@
-// Id generation for runs and reports (api-contract.md). Run id: 5 Crockford base32 chars. Report id:
+// Id generation for runs and reports. Run id: 5 Crockford base32 chars. Report id:
 // a ULID (Crockford base32, time-ordered). Both use crypto randomness; the generated chars match the
 // contracts' RunId/ReportId schemas.
 
@@ -28,7 +28,7 @@ export function newReportId(now = Date.now()): string {
   return timeChars.join("") + randChars;
 }
 
-/** The citizen-facing ticket code: run id + last 4 of the report id (api-contract.md). */
+/** The citizen-facing ticket code: run id + last 4 of the report id. */
 export function ticketCode(runId: string, reportId: string): string {
   return `${runId}-${reportId.slice(-4)}`;
 }

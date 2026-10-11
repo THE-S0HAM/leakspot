@@ -1,6 +1,6 @@
 // Framework-free async router shared by the Lambda handler and the local dev server. It owns the
 // read → reduce → conditional-put → retry loop against the RunStore and maps domain outcomes to the
-// api-contract.md envelope. Dependencies (stores, vision, config, id generators) are injected so the
+// JSON error envelope. Dependencies (stores, vision, config, id generators) are injected so the
 // handler wires AWS adapters and tests/local wire in-memory ones.
 
 import {
@@ -84,7 +84,7 @@ function requireCommand(req: RouterRequest, deps: RouterDeps): RouterResult | un
   return undefined;
 }
 
-/** Public view of a run (api-contract.md GET /runs/{id}/public). */
+/** Public view of a run. */
 function publicView(runId: string, state: RunState): unknown {
   return {
     runId,

@@ -1,4 +1,4 @@
-// Guards design-system.md "human words everywhere": the rendered Command Centre text must contain no
+// Guards the "human words everywhere" rule: the rendered Command Centre text must contain no
 // snake_case identifier (e.g. "major_leak", "closed_logged", "HIDDEN_SUSPECTED" survives as upper, but
 // lowercase snake_case must not appear). Drives a fake run through incidents + a verified/logged state.
 

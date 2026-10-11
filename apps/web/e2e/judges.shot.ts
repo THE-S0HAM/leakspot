@@ -1,4 +1,4 @@
-// PART 2: the "Judges: the access code is in the project's submission form." line on the landing page
+// The "Judges: the access code is in the project's submission form." line on the landing page
 // and the command code screen, at phone and desktop widths.
 import { expect, test } from "@playwright/test";
 

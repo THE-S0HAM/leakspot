@@ -1,5 +1,5 @@
-// Verifies the deadline-mode LeakSpot stack synthesizes with the expected skeleton:
-// one provisioned DynamoDB table, two private S3 buckets, the API Lambda with a public
+// Verifies the LeakSpot stack synthesizes with the expected skeleton:
+// one DynamoDB table, two private S3 buckets, the API Lambda with a public
 // (AuthType NONE) Function URL, a CloudFront distribution with one CloudFront Function,
 // and a SiteUrl output. Uses only aws-cdk-lib/assertions, so it needs no AWS credentials.
 // (Lambda bundling runs esbuild locally and reads .env.deploy for COMMAND_CODE_SHA256.)

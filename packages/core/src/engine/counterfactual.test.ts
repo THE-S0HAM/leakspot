@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { counterfactual, DEFAULT_SLIDERS } from "./counterfactual";
 
-describe("counterfactual (domain-engine.md §11)", () => {
+describe("counterfactual", () => {
   it("saves (hiddenRunDays − actual days) × size for a repaired hidden leak", () => {
     const result = counterfactual(
       [

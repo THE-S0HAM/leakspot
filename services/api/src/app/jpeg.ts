@@ -1,4 +1,4 @@
-// Server-side JPEG validation (security-and-access.md): verify the magic bytes and the decoded size
+// Server-side JPEG validation: verify the magic bytes and the decoded size
 // cap. We never parse or display EXIF. Returns the decoded bytes on success.
 
 import { Buffer } from "node:buffer";

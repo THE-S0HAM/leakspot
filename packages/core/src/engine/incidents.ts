@@ -1,4 +1,4 @@
-// Incident model and fusion rules (domain-engine.md §6). Pure data + helpers; the run reducer applies
+// Incident model and fusion rules. Pure data + helpers; the run reducer applies
 // them. An incident aggregates meter and citizen evidence for a suspected area and carries its verdict,
 // score breakdown and a human "why" line. engine/ only — no sim/, no ground truth.
 
@@ -74,7 +74,7 @@ export function simHours(day: number, slotIndex: number): number {
   return day * 24 + minutes / 60;
 }
 
-/** Derive the verdict from the evidence present (domain-engine.md §6.4). */
+/** Derive the verdict from the evidence present. */
 export function deriveVerdict(params: {
   kind: IncidentKind;
   meterAnomaly: boolean;

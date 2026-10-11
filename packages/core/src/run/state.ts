@@ -84,7 +84,7 @@ export type RunState = {
   /** ids of scripted NPC reports already applied by tick (each applied exactly once). */
   appliedReports: string[];
   /**
-   * Citizen reports created but not yet classified (api-contract.md two-step create → classify). Kept
+   * Citizen reports created but not yet classified. Kept
    * here so the two requests round-trip through DynamoDB on a stateless Lambda. Cleared on classify.
    */
   pendingReports: PendingReport[];

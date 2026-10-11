@@ -1,7 +1,7 @@
 // Active-leak ground truth (sim/ only; the engine never imports this). The leak definitions are pure
 // seed-derived data (positions, sizes, start slots) and carry NO runtime state. Which leaks have been
 // repaired lives in RunState (a set of ids), so a context rebuilt from the seed on a fresh Lambda is
-// identical every time and all runtime facts round-trip through DynamoDB (domain-engine.md §8).
+// identical every time and all runtime facts round-trip through DynamoDB.
 
 import { distance, type Point, type SectorId } from "../world/jaldhara";
 import { SCRIPTED_LEAKS, type ScriptedLeak } from "./script";
@@ -62,7 +62,7 @@ export function visibleActiveLeaks(
 }
 
 /**
- * The ground-truth leak an engineer fixes at `pin` in `sectorId` (domain-engine.md §8): the largest
+ * The ground-truth leak an engineer fixes at `pin` in `sectorId`: the largest
  * active leak in the sector within 8 units of the pin; for a hidden pin, the largest hidden leak in
  * the sector. Pure — returns the leak id to mark repaired in RunState, or undefined if none matched.
  */

@@ -1,4 +1,4 @@
-// Block button with a hard side face and a single press motion (design-system.md). Variants:
+// Block button with a hard side face and a single press motion. Variants:
 // primary (filled), secondary (outline), danger (sindoor). `big` is the citizen thumb-zone size.
 import type { ButtonHTMLAttributes, JSX } from "react";
 import styles from "./ui.module.css";

@@ -1,5 +1,5 @@
-// TankGauge: a block water tank that fills row by row — the boot loader for City3D (design-system.md:
-// "no spinners"). Each filled row is one completed boot step; here it animates with CSS as a calm
+// TankGauge: a block water tank that fills row by row — the boot loader for City3D (no spinners).
+// Each filled row is one completed boot step; here it animates with CSS as a calm
 // placeholder while the 3D bundle and scene load. Static under prefers-reduced-motion.
 import type { JSX } from "react";
 import styles from "./TankGauge.module.css";

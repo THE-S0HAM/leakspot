@@ -1,4 +1,4 @@
-// Integration test for the scripted Jaldhara scenario (scenario-jaldhara.md "Expected outcome"),
+// Integration test for the scripted Jaldhara scenario (the expected outcome of the demo day),
 // seed 42, autopilot on, FakeVision. Pins the whole expected story end to end.
 
 import { describe, expect, it } from "vitest";
@@ -74,7 +74,7 @@ describe("Jaldhara scenario (seed 42, autopilot, FakeVision)", () => {
   });
 });
 
-describe("history is quiet (domain-engine.md: zero false alarms)", () => {
+describe("history is quiet (zero false alarms)", () => {
   it("raises no anomaly in any sector across days 1–14", () => {
     // Fast-forward a fresh run through 14 leak-free days (14 × 20 slots) and assert nothing leaves normal.
     const { state, context } = createRun(42);

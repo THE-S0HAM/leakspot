@@ -1,4 +1,4 @@
-// Vision label handling (domain-engine.md §5): map a resolved label (from Bedrock, cache, or the
+// Vision label handling: map a resolved label (from Bedrock, cache, or the
 // citizen's self-choice) to a severity, a "confident photo" flag and whether the report is rejected.
 // Pure. The run reducer and the API share this so FakeVision and real Bedrock behave identically.
 

@@ -1,4 +1,4 @@
-// Seeded RNG for the simulator (domain-engine.md §2). mulberry32 for uniforms, a small string hash to
+// Seeded RNG for the simulator. mulberry32 for uniforms, a small string hash to
 // derive a per-(seed, day, slot, meter, stream) seed, and Box–Muller for normals. Pure and
 // deterministic: the same inputs always produce the same sequence, so runs replay identically.
 

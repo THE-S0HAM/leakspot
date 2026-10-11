@@ -1,7 +1,7 @@
 // Slot and litre conversions: the single place that maps supply-slot indices to
 // their HH:MM start labels and converts flows between litres-per-hour and
 // litres-per-slot (1 slot = 15 min). Every layer shares these so times and
-// volumes agree. See domain-engine.md section 1 (Time) and section 2 (readings).
+// volumes agree.
 
 import { DomainError } from "./errors";
 

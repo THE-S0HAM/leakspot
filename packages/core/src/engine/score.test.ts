@@ -13,7 +13,7 @@ const base: ScoreInput = {
   sewageMixing: false,
 };
 
-describe("scoreIncident test vectors (domain-engine.md §7)", () => {
+describe("scoreIncident test vectors", () => {
   it.each([
     [
       "C3 burst",

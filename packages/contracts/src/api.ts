@@ -1,10 +1,10 @@
-// Request/response zod schemas for the API routes (api-contract.md), shared by the server and the web
+// Request/response zod schemas for the API routes, shared by the server and the web
 // client so both validate the same shapes. Unknown fields are rejected (strict) on request bodies.
 
 import { z } from "zod";
 import { MAX_PHOTO_BYTES } from "./photo-limits";
 
-// World bounds (scenario-jaldhara.md): x 0–100, z 0–104.
+// World bounds: x 0–100, z 0–104.
 const X = z.number().min(0).max(100);
 const Z = z.number().min(0).max(104);
 
@@ -72,7 +72,7 @@ export type AutopilotBody = z.infer<typeof AutopilotBody>;
 export const AuthCheckBody = z.object({ code: z.string() }).strict();
 export type AuthCheckBody = z.infer<typeof AuthCheckBody>;
 
-/** A pipeline stage line (api-contract.md "Report pipeline"). */
+/** A pipeline stage line. */
 export const Stage = z.object({
   stage: z.enum([
     "received",

@@ -1,5 +1,5 @@
-// Minimal in-memory sliding-window rate limiter for citizen report creation only. Deadline mode cut
-// the DynamoDB atomic limiter, so this is a per-Lambda-instance guard: it caps obvious floods from one
+// Minimal in-memory sliding-window rate limiter for citizen report creation only. There is no shared
+// (DynamoDB) limiter, so this is a per-Lambda-instance guard: it caps obvious floods from one
 // client without any storage. Command endpoints are never limited (so Play at 4× can't be throttled).
 // The client key is derived from the CloudFront viewer address header; unknown → a shared "anon" bucket.
 

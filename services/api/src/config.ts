@@ -1,4 +1,4 @@
-// Validates process.env once with zod and returns a frozen, cached Config (deadline-mode: one API
+// Validates process.env once with zod and returns a frozen, cached Config (one API
 // Lambda, no worker, no sessions). A bad environment fails fast with a message that names every
 // offending variable and its rule, never echoing a supplied value (COMMAND_CODE_SHA256 is a hash, but
 // we still avoid printing it). Env comes from the CDK stack: TABLE_NAME, PHOTO_BUCKET, BEDROCK_MODEL_ID,

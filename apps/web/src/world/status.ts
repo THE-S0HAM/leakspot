@@ -1,5 +1,5 @@
 // Sector-status presentation: the CSS custom-property colour and the word label for each status
-// (design-system.md: status is never colour alone). Shared by CityView and the zone rail.
+// (status is never colour alone). Shared by CityView and the zone rail.
 
 import type { SectorStatus } from "../state/view-types";
 

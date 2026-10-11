@@ -12,7 +12,7 @@ export type SectorSlotReadings = {
   inlet: number;
 };
 
-/** Per-sector per-slot balance derived from readings (domain-engine.md §3). */
+/** Per-sector per-slot balance derived from readings. */
 export type SectorBalance = {
   sectorId: SectorId;
   consumption: number; // C = Σ building readings (observed + imputed)

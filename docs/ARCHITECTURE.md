@@ -68,7 +68,7 @@ flowchart LR
 
 ## History
 
-The first plan had a second "worker" Lambda for the report pipeline, an EventBridge Scheduler driving a
+An earlier design had a second "worker" Lambda for the report pipeline, an EventBridge Scheduler driving a
 public showcase run, CloudWatch alarms with SNS email, and provisioned DynamoDB capacity. These were
-removed before launch to keep one simple, synchronous path; see ADR-015 and ADR-016 in
-[DECISIONS.md](DECISIONS.md).
+removed before launch to keep one simple, synchronous path, and DynamoDB moved to on-demand
+capacity because request volume is small.

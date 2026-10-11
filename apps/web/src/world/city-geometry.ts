@@ -1,6 +1,6 @@
 // Deterministic building layout for CityView, generated from @leakspot/core/world only (no leaks).
 // A small local seeded RNG (seed 42) places stacked-block buildings on a grid inside each sector, with
-// per-zone floor ranges from scenario-jaldhara.md. Pure; the same seed yields the same city every time.
+// per-zone floor ranges. Pure; the same seed yields the same city every time.
 
 import { SECTORS, type Sector, type ZoneId } from "@leakspot/core/world";
 

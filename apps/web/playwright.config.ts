@@ -1,6 +1,6 @@
-// Playwright config for the Command Centre e2e checks (Stage A health-bar test + Stage B screenshots).
+// Playwright config for the end-to-end checks (health bar, access code) and the screenshot scripts.
 // Runs the dev stack (local in-memory API on :8787 + Vite on :5173) with a KNOWN test command code, so
-// the specs never read .env.deploy. The code is "ABCDEFGH"; its SHA-256 is injected as COMMAND_CODE_SHA256.
+// the tests never read .env.deploy. The code is "ABCDEFGH"; its SHA-256 is injected as COMMAND_CODE_SHA256.
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";

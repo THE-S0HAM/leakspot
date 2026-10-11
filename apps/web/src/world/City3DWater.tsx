@@ -1,4 +1,4 @@
-// City3D PART 1b: the water network and everything that happens on it. Pipes that CONNECT (reservoir →
+// City3D water layer: the water network and everything that happens on it. Pipes that CONNECT (reservoir →
 // trunk → avenue main → service pipe → inlet meter → distribution line → a lateral to every building),
 // flow cubes in X-ray, the X-ray fade, suspected-sector rings + amber drips (never a precise point),
 // visible-leak fountains + puddles, the confirmed "!" marker, the crew truck on the road grid, the

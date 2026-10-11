@@ -1,4 +1,4 @@
-// Demand model (domain-engine.md §2): per-connection daily volume split across the 20 supply slots by
+// Demand model: per-connection daily volume split across the 20 supply slots by
 // fixed weights (normalised to sum 1), with a Sunday multiplier, and a seeded split of a sector's
 // connections across its 15 building meters. Pure and deterministic.
 
@@ -19,7 +19,7 @@ export const SLOT_WEIGHTS: readonly number[] = (() => {
   return raw.map((w) => w / total);
 })();
 
-/** weekday 0 = Monday (domain-engine.md §1): day 1 Monday, days 7 & 14 Sunday. */
+/** weekday 0 = Monday: day 1 Monday, days 7 & 14 Sunday. */
 export function weekday(day: number): number {
   return (((day - 1) % 7) + 7) % 7;
 }

@@ -1,4 +1,4 @@
-// Scripted ground truth (scenario-jaldhara.md): the 4 day-15 leaks and the 12 NPC reports with their
+// Scripted ground truth: the 4 day-15 leaks and the 12 NPC reports with their
 // scenario labels. GROUND TRUTH — lives only in sim/; must never reach the web bundle. The engine never
 // imports this; it sees only meter readings and submitted reports.
 

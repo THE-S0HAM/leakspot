@@ -1,6 +1,6 @@
 // Deterministic 3D city geometry generated from @leakspot/core/world only (no leaks, seed 42), so the
 // 3D city, the SVG map and the engine always agree. Produces typed buildings (house/apartment/shop),
-// per-building window/tank flags, the road grid (from scenario-jaldhara.md streets) and tree spots.
+// per-building window/tank flags, the road grid (the city's streets) and tree spots.
 // Pure data; City3D turns it into instanced meshes. 1 world unit = 10 m; y is up.
 
 import { SECTORS, type Sector, type ZoneId } from "@leakspot/core/world";
@@ -35,7 +35,7 @@ export type Building3D = {
   glowSeed: number;
 };
 
-// Per-zone building mix and floor ranges (scenario-jaldhara.md zone styles).
+// Per-zone building mix and floor ranges.
 const ZONE_SPEC: Record<ZoneId, { floors: [number, number]; types: BuildingType[] }> = {
   A: { floors: [2, 3], types: ["house", "house", "shop"] }, // Old City, dense low
   B: { floors: [1, 4], types: ["shop", "shop", "house"] }, // Market with shop rows
@@ -110,7 +110,7 @@ export function buildCity3D(
   });
 }
 
-// Road grid from scenario-jaldhara.md. Avenues (x=50, z=56) are wider.
+// The road grid: five streets each way. Avenues (x=50, z=56) are wider.
 const STREETS_X = [2, 25, 50, 75, 98];
 const STREETS_Z = [12, 34, 56, 78, 101];
 const AVENUE_X = 50;

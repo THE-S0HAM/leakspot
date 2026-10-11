@@ -1,5 +1,5 @@
 // S3 PhotoStore adapter: stores private JPEGs at photos/{runId}/{reportId}.jpg and makes a 5-minute
-// presigned GET URL for command users (api-contract.md). Only adapters/ may import @aws-sdk/*.
+// presigned GET URL for command users. Only adapters/ may import @aws-sdk/*.
 
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";

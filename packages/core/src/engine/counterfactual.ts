@@ -1,4 +1,4 @@
-// Counterfactual (domain-engine.md §11): litres saved by LeakSpot vs a world without it, used by the
+// Counterfactual: litres saved by LeakSpot vs a world without it, used by the
 // command "with vs without" sliders. Pure; labelled "simulation" by the UI. engine/ only.
 
 export type CounterfactualIncident = {
@@ -38,7 +38,7 @@ export type CounterfactualResult = {
   totalTankers: number;
 };
 
-/** Litres saved per incident and total (domain-engine.md §11). */
+/** Litres saved per incident and total. */
 export function counterfactual(
   incidents: readonly CounterfactualIncident[],
   sliders: CounterfactualSliders = DEFAULT_SLIDERS,

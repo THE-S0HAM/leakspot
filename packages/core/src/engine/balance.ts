@@ -1,4 +1,4 @@
-// Water balance and ratio-scaled imputation (domain-engine.md §3). Given a sector's slot readings and
+// Water balance and ratio-scaled imputation. Given a sector's slot readings and
 // the per-meter 14-day medians for this slotIndex, impute missing building readings, then compute the
 // consumption C, inlet I, unaccounted U and loss ratio L. Pure.
 

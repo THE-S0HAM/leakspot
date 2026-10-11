@@ -1,6 +1,6 @@
-// Baseline and anomaly detection (domain-engine.md §4). Baselines are the median and MAD-scaled spread
+// Baseline and anomaly detection. Baselines are the median and MAD-scaled spread
 // of the loss ratio L per sector per slotIndex over days 1–14; a slot is anomalous when z ≥ 3 and the
-// excess ratio ≥ 0.08. Pure. Baselines are recomputed from history, never stored (deadline-mode).
+// excess ratio ≥ 0.08. Pure. Baselines are recomputed from history, never stored.
 
 import { mad, median } from "./stats";
 import type { SectorBaseline } from "./types";
@@ -21,7 +21,7 @@ export type AnomalyResult = {
   z: number;
   excessRatio: number;
   anomalous: boolean;
-  /** excessLitresPerSlot = excessRatio × I / (1 − median) (domain-engine.md §4). */
+  /** excessLitresPerSlot = excessRatio × I / (1 − median). */
   excessLitresPerSlot: number;
 };
 

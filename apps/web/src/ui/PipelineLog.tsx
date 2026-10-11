@@ -1,4 +1,4 @@
-// PipelineLog: a truthful progress log (design-system.md "no spinners"). Each line is one real stage
+// PipelineLog: a truthful progress log. Each line is one real stage
 // with a state — done [ ok ], active [ >> ] (blinks at 1 Hz, static under reduced motion), or pending
 // [    ] (dim). The caller passes only stages that have actually happened; nothing here fakes progress.
 import type { JSX } from "react";

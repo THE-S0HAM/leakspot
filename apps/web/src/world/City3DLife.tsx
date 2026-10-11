@@ -1,4 +1,4 @@
-// City3D PART 1c: life. Seeded decoration, NOT data: 12 cars and auto-rickshaws looping on the
+// City3D street life. Seeded decoration, NOT data: 12 cars and auto-rickshaws looping on the
 // streets (slowing near junctions), traffic lights at the main junctions cycling every 6 s, 20
 // citizens walking footpath loops with a small bob, and street lamps that glow at dawn/dusk/night.
 // Reduced motion: no traffic and no people (lights and lamps stay, static).

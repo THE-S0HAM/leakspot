@@ -1,4 +1,4 @@
-// Stage A 5a: the City-water-health bar must actually render a filled, coloured segment. The fill's
+// The City-water-health bar must actually render a filled, coloured segment. The fill's
 // width ≈ track width × health/100 (±2% of the track), and its background-color differs from the track.
 import { expect, test } from "@playwright/test";
 import { startRun } from "./helpers";

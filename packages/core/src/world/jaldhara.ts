@@ -1,4 +1,4 @@
-// Jaldhara layout: zones, sectors, inlet meters, facilities and the trunk main (scenario-jaldhara.md).
+// Jaldhara layout: zones, sectors, inlet meters, facilities and the trunk main.
 // Pure typed data, NO leaks and NO scripted reports — those live only in sim/. This module is published
 // to the web app as @leakspot/core/world, so it must stay free of ground truth.
 // Coordinates: 1 unit = 10 m; x east 0–100, z south 0–104.
@@ -34,7 +34,7 @@ export const BUILDING_METERS_PER_SECTOR = 15;
 
 type SectorSpec = { id: SectorId; connections: number; backgroundLoss: number };
 
-// Per-sector connections and background loss (scenario-jaldhara.md). Order fixed for determinism.
+// Per-sector connections and background loss. Order fixed for determinism.
 const SECTOR_SPECS: readonly SectorSpec[] = [
   { id: "A1", connections: 240, backgroundLoss: 0.14 },
   { id: "A2", connections: 320, backgroundLoss: 0.16 },
@@ -55,7 +55,7 @@ const SECTOR_SPECS: readonly SectorSpec[] = [
 ];
 
 // Zone origin (top-left of the zone) in world units. Zones are 42 wide (x) and 40 tall (z);
-// each 2x2 sector is 20 x 19 within it (scenario-jaldhara.md "Layout": A1 x4–24 z14–33, C3 x4–24 z79–98).
+// each 2x2 sector is 20 x 19 within it (A1 x4–24 z14–33, C3 x4–24 z79–98).
 const ZONE_ORIGIN: Record<ZoneId, { x: number; z: number }> = {
   A: { x: 4, z: 14 },
   B: { x: 54, z: 14 },

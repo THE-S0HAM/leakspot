@@ -1,8 +1,7 @@
-// The single LeakSpot CDK v2 stack (deadline mode): web bucket + CloudFront (OAC to S3,
+// The single LeakSpot CDK v2 stack: web bucket + CloudFront (OAC to S3,
 // SPA rewrite function), a /api/* behaviour to the API Lambda Function URL (AuthType NONE,
-// no OAC), a private photo bucket, one provisioned DynamoDB table, and the API Lambda.
-// Resources cut by 00-deadline-mode.md (worker, scheduler, SNS, alarms, dashboard, OAC-to-Lambda)
-// are intentionally absent. Output: SiteUrl.
+// no OAC), a private photo bucket, one on-demand DynamoDB table, and the API Lambda. There is no
+// worker Lambda, scheduler, SNS topic, alarm or dashboard by design. Output: SiteUrl.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -55,7 +54,7 @@ export class LeakSpotStack extends Stack {
       partitionKey: { name: "pk", type: AttributeType.STRING },
       sortKey: { name: "sk", type: AttributeType.STRING },
       // PAY_PER_REQUEST: this account may already use its free provisioned capacity elsewhere, and our
-      // request volume is tiny (ADR-016). No GSI/stream/PITR.
+      // request volume is tiny. No GSI/stream/PITR.
       billingMode: BillingMode.PAY_PER_REQUEST,
       timeToLiveAttribute: "expiresAt",
       removalPolicy: RemovalPolicy.DESTROY,
@@ -76,7 +75,7 @@ export class LeakSpotStack extends Stack {
       runtime: Runtime.NODEJS_22_X,
       architecture: Architecture.ARM_64,
       // 1024 MB (more vCPU) so the one-time 14-day history rebuild is fast; still inside the always-free
-      // 400,000 GB-s Lambda allowance given our low request volume (free-tier-guardrails.md).
+      // 400,000 GB-s Lambda allowance given our low request volume.
       memorySize: 1024,
       timeout: Duration.seconds(15),
       logGroup: new LogGroup(this, "ApiFnLogs", { retention: RetentionDays.ONE_WEEK }),
@@ -161,7 +160,7 @@ export class LeakSpotStack extends Stack {
 // placeholder can never reach AWS.
 const PLACEHOLDER_SHA256 = "0".repeat(64);
 
-// The command-code alphabet (security-and-access.md): A–Z and 2–9 without I, L, O, U.
+// The command-code alphabet: A–Z and 2–9 without I, L, O, U.
 const CODE_RE = /^[ABCDEFGHJKMNPQRSTVWXYZ23456789]{8}$/;
 
 /**

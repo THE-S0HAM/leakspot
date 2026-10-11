@@ -1,4 +1,4 @@
-// Visual check for Stage 1-3D: /command at 05:45 (just started), 06:45 (after stepping) and with X-ray on,
+// Visual check of the 3D city: /command at 05:45 (just started), 06:45 (after stepping) and with X-ray on,
 // plus / and /report, at desktop and phone sizes. Run with `npm run shots -w @leakspot/web`, then open
 // e2e/screenshots/*.png. Not part of the default e2e run (only *.spec.ts runs there).
 import { expect, test, type Page } from "@playwright/test";

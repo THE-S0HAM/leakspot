@@ -1,4 +1,4 @@
-// Pure run reducers (domain-engine.md §§3–10). Each returns { state, events } and never mutates its
+// Pure run reducers. Each returns { state, events } and never mutates its
 // input. createRun builds the dry day-15 state + seed-derived context; tick advances one supply slot
 // (generate readings → balance → anomaly → status → incident rule 1 → autopilot crew → verification);
 // addReport applies the report-fusion rules; dispatch/repair/setAutopilot are the crew controls.
@@ -56,7 +56,7 @@ const VERIFY_SLOTS = 3;
 const VERIFY_EXCESS_THRESHOLD = 0.03;
 const VERIFIED_GLOW_SLOTS = 3;
 const SCENARIO_DAY = 15;
-// Keep the META compact (≤ 8 KB, deadline-mode): only the most recent events live on the aggregate;
+// Keep the META compact (≤ 8 KB): only the most recent events live on the aggregate;
 // the full history for replay is reconstructed from TICK items by the API, not stored here.
 const RECENT_EVENTS_MAX = 8;
 

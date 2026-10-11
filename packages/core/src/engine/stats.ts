@@ -1,4 +1,4 @@
-// Small statistics helpers used by baselines (domain-engine.md §4). Pure.
+// Small statistics helpers used by baselines. Pure.
 
 /** Median of a non-empty list. Returns 0 for an empty list. */
 export function median(values: readonly number[]): number {

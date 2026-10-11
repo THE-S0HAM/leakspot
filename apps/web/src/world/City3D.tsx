@@ -1,8 +1,8 @@
 // City3D: the 3D view of Jaldhara (react-three-fiber). Same props/callbacks as CityView, so the
 // Command Centre and Landing don't change. Reads run state + the static @leakspot/core/world layout
-// only (no API, no leaks). PART 1a: scene, orthographic iso camera + MapControls, sim-time lighting,
+// only (no API, no leaks): the scene, the camera and controls, sim-time lighting,
 // a floating diorama slab, roads, instanced buildings with Indian-city variety, landmarks, trees, and
-// drei <Html> labels for non-normal / hovered / selected sectors. Water, crew and effects are PART 1b.
+// drei <Html> labels for non-normal / hovered / selected sectors. Water, crew and effects live in City3DWater.
 
 import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -679,7 +679,7 @@ export function City3D(props: City3DProps): JSX.Element {
   const sky = useMemo(() => skyFor(label), [label]);
   const glow = windowsGlow(label);
 
-  // Soft shadows only on big screens with plenty of cores (plan PART 1a).
+  // Soft shadows only on big screens with plenty of cores.
   const shadows = useMemo(() => {
     if (typeof window === "undefined") return false;
     const cores = navigator.hardwareConcurrency ?? 2;

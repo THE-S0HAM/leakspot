@@ -7,7 +7,7 @@ import {
   SECTORS,
 } from "./jaldhara";
 
-describe("Jaldhara layout (scenario-jaldhara.md)", () => {
+describe("Jaldhara layout", () => {
   it("has 16 sectors totalling 5,780 connections", () => {
     expect(SECTORS).toHaveLength(16);
     expect(TOTAL_CONNECTIONS).toBe(5780);

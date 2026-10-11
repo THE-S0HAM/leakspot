@@ -8,7 +8,7 @@ export type Segment = { a: { x: number; z: number }; b: { x: number; z: number }
 export type ServicePipe = { sectorId: SectorId; seg: Segment };
 
 const AVENUE_X = 50;
-// Cross-avenue z-lines the zone mains follow (scenario-jaldhara.md streets z = 34 and z = 78 run
+// Cross-avenue z-lines the zone mains follow (the streets z = 34 and z = 78 run
 // through the sector rows; we branch each inlet off the avenue at the inlet's own z).
 export const TRUNK: Segment = {
   a: { x: RESERVOIR.x, z: RESERVOIR.z },

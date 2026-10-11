@@ -1,4 +1,4 @@
-// Handler-layer tests for the router with in-memory adapters + FakeVision (testing.md): every route's
+// Handler-layer tests for the router with in-memory adapters + FakeVision: every route's
 // happy path, plus validation, auth and not-found. The command code is generated per test run.
 
 import { createHash, randomInt } from "node:crypto";

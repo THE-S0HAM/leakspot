@@ -1,4 +1,4 @@
-// Drives the scripted day-15 Jaldhara scenario (scenario-jaldhara.md) with autopilot on. tick now owns
+// Drives the scripted day-15 Jaldhara scenario with autopilot on. tick now owns
 // scripted-report injection, so the runner is just: createRun → autopilot on → loop tick for the day.
 // Reusable for the Showcase. Returns the final state + the seed-derived context.
 

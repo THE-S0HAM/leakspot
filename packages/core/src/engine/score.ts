@@ -1,10 +1,10 @@
-// Pure priority score for an incident (domain-engine.md §7). Deterministic: same input, same P.
+// Pure priority score for an incident. Deterministic: same input, same P.
 // The five documented test vectors (96/39/31/25/80) pin this function exactly; see score.test.ts.
 
 export type VisionLabel =
   "burst" | "sewage_mixing" | "major_leak" | "minor_drip" | "not_a_leak" | "unclear";
 
-/** Severity by label (domain-engine.md §5). not_a_leak is rejected before scoring; unclear == major_leak. */
+/** Severity by label. not_a_leak is rejected before scoring; unclear == major_leak. */
 export const SEVERITY: Record<Exclude<VisionLabel, "not_a_leak">, number> = {
   burst: 1.0,
   sewage_mixing: 1.0,

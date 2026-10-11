@@ -9,9 +9,13 @@ the meters prove the fix.
 
 ![The LeakSpot landing page: a 3D block city of Jaldhara](docs/images/landing.jpg)
 
-| Command Centre at 06:45                                                                                        | X-ray: the pipe network                                                         | Citizen report on a phone                                                               |
-| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| ![Command Centre with a confirmed burst at C3 and a hidden leak suspected in B2](docs/images/command-0645.jpg) | ![X-ray view: the city fades and the water network glows](docs/images/xray.jpg) | ![A citizen's report: the AI check and a priority score](docs/images/citizen-phone.jpg) |
+| Command Centre at 06:45                                                                                        | X-ray: the pipe network                                                         |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| ![Command Centre with a confirmed burst at C3 and a hidden leak suspected in B2](docs/images/command-0645.jpg) | ![X-ray view: the city fades and the water network glows](docs/images/xray.jpg) |
+
+| Citizen report on the live site (Hindi)                                                                                             | The result: a real Nova 2 Lite check                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| ![A citizen's phone: a photo of a running tap, the choice "water flowing" and the tap-the-spot map](docs/images/citizen-report.jpg) | ![The citizen's result: each step done, AI "small drip, 90%", a new report in B3 and a ticket](docs/images/citizen-result.jpg) |
 
 ---
 
@@ -250,11 +254,9 @@ on the account; the only real per-use cost is the Bedrock call for each photo. D
 - English, Hindi and Marathi on citizen screens. Next: more Indian languages.
 - Planned: a public stats page (runs, reports, litres recovered over time).
 
-## Built with
+## Author
 
-Built solo for the hackathon (Heat and Water track) by **Soham Deshmukh**, with
-**[Kiro](https://kiro.dev)** (spec-driven development: steering files, specs and hooks) and
-**[Claude Code](https://claude.com/claude-code)**.
+Solo project by **Soham Deshmukh**, built for the hackathon (Heat and Water track).
 
 ## License
 

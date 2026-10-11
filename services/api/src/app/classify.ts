@@ -1,5 +1,5 @@
 // Resolve a leak photo to an engine label via the vision port, with the self-reported fallback when
-// Bedrock is unavailable (api-contract.md §5). Pure orchestration over the injected VisionPort.
+// Bedrock is unavailable. Pure orchestration over the injected VisionPort.
 
 import type { VisionLabel } from "@leakspot/core";
 import type { VisionPort } from "../ports/vision";

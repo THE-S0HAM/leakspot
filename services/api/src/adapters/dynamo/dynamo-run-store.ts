@@ -1,4 +1,4 @@
-// DynamoDB RunStore adapter (api-contract.md single-table design). One item per run: pk = RUN#<id>,
+// DynamoDB RunStore adapter. One item per run: pk = RUN#<id>,
 // sk = META, a `version` number for optimistic locking, and the RunState JSON under `state`. create
 // and put use condition expressions so concurrent writers can't clobber each other; the router retries
 // on VersionConflictError. Only adapters/ may import @aws-sdk/* (dependency rules).

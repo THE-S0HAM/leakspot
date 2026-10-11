@@ -1,4 +1,4 @@
-// Unit tests for loadConfig (deadline-mode single-role API env): defaults, caching (===), isolation
+// Unit tests for loadConfig (the single API Lambda's env): defaults, caching (===), isolation
 // from later env changes, and the aggregated error that names every offending variable without
 // echoing a supplied value. The command-code hash is derived from a code generated at test start.
 
