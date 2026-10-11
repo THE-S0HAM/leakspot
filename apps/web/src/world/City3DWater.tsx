@@ -12,6 +12,8 @@ import { FACILITIES, RESERVOIR, SECTORS, TRUNK_MAIN, type SectorId } from "@leak
 import type { IncidentView, RecentReport, SectorStatus } from "../state/view-types";
 import type { CrewMarker } from "./CityView";
 import { InstancedBoxes, type BoxItem } from "./InstancedBoxes";
+import { laneRoute, makePath, sampleAt, type Path } from "./roads";
+import { DEPOT as DEPOT_BOX, TRUCK_HOME } from "./landmarks";
 import type { Building3D } from "./city3d-geometry";
 import { HEX } from "./palette";
 import { labelWord } from "../ui/words";
@@ -19,9 +21,8 @@ import { lakh } from "../ui/format";
 import styles from "./City3D.module.css";
 
 const AVENUE_X = 50;
-const STREETS_X = [2, 25, 50, 75, 98];
-const STREETS_Z = [12, 34, 56, 78, 101];
-const DEPOT = FACILITIES.find((f) => f.kind === "depot")?.at ?? { x: 14, z: 102 };
+// The crew marker interpolates from the depot facility point; progress is measured from there.
+const DEPOT_AT = FACILITIES.find((f) => f.kind === "depot")?.at ?? { x: DEPOT_BOX.x, z: 102 };
 const PIPE_Y = 0.16;
 
 const reducedMotion =
@@ -527,52 +528,45 @@ function VerifiedBurstFx({ x, z, litres }: { x: number; z: number; litres?: numb
 
 // ---------- crew truck ----------
 
-function nearest(vals: readonly number[], v: number): number {
-  let best = vals[0] ?? v;
-  for (const x of vals) if (Math.abs(x - v) < Math.abs(best - v)) best = x;
-  return best;
-}
-
-/** A road-following route from a to b: onto a street-x, along to the target's street-z, across, in. */
-function route(a: P, b: P): P[] {
-  const sx = nearest(STREETS_X, a.x);
-  const sz = nearest(STREETS_Z, b.z);
-  return [a, { x: sx, z: a.z }, { x: sx, z: sz }, { x: b.x, z: sz }, b];
-}
-
 export function CrewTruck({ crew }: { crew: CrewMarker | undefined }): JSX.Element {
+  // The truck drives the SAME road graph as the traffic: a left-lane route from where it is to the
+  // road point nearest the incident, advanced to the crew's progress (ETA) along that route; back to
+  // the depot when the crew is idle.
   const group = useRef<THREE.Group>(null);
   const beacon = useRef<THREE.Mesh>(null);
   const sparks = useRef<THREE.Group>(null);
-  const pos = useRef<P>({ x: DEPOT.x + 3, z: DEPOT.z - 4 });
-  const path = useRef<P[]>([]);
-  const goal = crew ? { x: crew.x, z: crew.z } : { x: DEPOT.x + 3, z: DEPOT.z - 4 };
+  const at = useRef({ x: TRUCK_HOME.x, z: TRUCK_HOME.z, heading: Math.PI });
+  const s = useRef(0); // arc length driven along the current route
+  const [route, setRoute] = useState<Path>(() => makePath([TRUCK_HOME]));
+  const target = crew?.target ?? null;
+  const goal = target ?? TRUCK_HOME;
   const goalKey = `${goal.x.toFixed(2)},${goal.z.toFixed(2)}`;
   useEffect(() => {
-    path.current = route(pos.current, goal).slice(1);
+    setRoute(makePath(laneRoute({ x: at.current.x, z: at.current.z }, goal)));
+    s.current = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalKey]);
+  // Progress along the route: from the crew marker's straight-line fraction depot → pin (ETA based);
+  // 1 when on site or heading home.
+  const progress = (() => {
+    if (!crew || !target || crew.repairing) return 1;
+    const total = Math.hypot(target.x - DEPOT_AT.x, target.z - DEPOT_AT.z) || 1;
+    return Math.min(1, Math.hypot(crew.x - DEPOT_AT.x, crew.z - DEPOT_AT.z) / total);
+  })();
   useFrame(({ clock }, dt) => {
     const g = group.current;
     if (!g || document.hidden) return;
-    const next = path.current[0];
-    if (next) {
-      const dx = next.x - pos.current.x;
-      const dz = next.z - pos.current.z;
-      const d = Math.hypot(dx, dz);
-      const step = reducedMotion ? d : Math.min(d, dt * 14);
-      if (d < 0.01) path.current.shift();
-      else {
-        pos.current.x += (dx / d) * step;
-        pos.current.z += (dz / d) * step;
-        g.rotation.y = Math.atan2(-dz, dx);
-      }
-    }
-    g.position.set(pos.current.x, 0, pos.current.z);
+    // a short visible drive even at progress 0 (leaving the depot), then follow the ETA
+    const want = Math.max(Math.min(route.length, 6), route.length * progress);
+    const moving = s.current < want - 0.01;
+    if (moving) s.current = reducedMotion ? want : Math.min(want, s.current + dt * 12);
+    sampleAt(route, s.current, at.current);
+    g.position.set(at.current.x, 0, at.current.z);
+    g.rotation.y = at.current.heading;
     if (beacon.current)
       beacon.current.visible = !!crew && Math.floor(clock.elapsedTime * 3) % 2 === 0;
     if (sparks.current) {
-      sparks.current.visible = !!crew?.repairing && !next;
+      sparks.current.visible = !!crew?.repairing && !moving;
       sparks.current.rotation.y = clock.elapsedTime * 4;
     }
   });

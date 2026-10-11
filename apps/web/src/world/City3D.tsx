@@ -8,7 +8,7 @@ import { memo, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Environment, Html, Lightformer, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { FACILITIES, RESERVOIR, SECTORS, WORLD_BOUNDS, type SectorId } from "@leakspot/core/world";
+import { RESERVOIR, SECTORS, WORLD_BOUNDS, type SectorId } from "@leakspot/core/world";
 import type { CityViewProps } from "./CityView";
 import type { IncidentView, SectorStatus } from "../state/view-types";
 import { verdictWord } from "../ui/words";
@@ -17,6 +17,7 @@ import { HEX, STATUS_HEX, ZONE_GROUND } from "./palette";
 import { InstancedBoxes } from "./InstancedBoxes";
 import { CityLife } from "./City3DLife";
 import { dressCity, dressRoads } from "./city3d-dressing";
+import { DEPOT, HOSPITAL, PARK, SCHOOL, SCHOOL_GROUND } from "./landmarks";
 import {
   buildNetwork,
   CrewTruck,
@@ -232,9 +233,10 @@ const Greenery = memo(function Greenery(): JSX.Element {
 // ---------- landmarks ----------
 
 function Landmarks(): JSX.Element {
-  const hospital = FACILITIES.find((f) => f.kind === "hospital")?.at ?? { x: 12, z: 94 };
-  const school = FACILITIES.find((f) => f.kind === "school")?.at ?? { x: 55, z: 32 };
-  const depot = { x: 14, z: 102 };
+  const hospital = HOSPITAL;
+  const school = SCHOOL;
+  const depot = DEPOT;
+  const ground = { x: SCHOOL_GROUND.x - SCHOOL.x, z: SCHOOL_GROUND.z - SCHOOL.z };
   return (
     <group>
       {/* Hospital: white block, red cross on the roof */}
@@ -285,12 +287,12 @@ function Landmarks(): JSX.Element {
           <boxGeometry args={[6, 4, 5]} />
           <meshStandardMaterial color="#f2c84b" />
         </mesh>
-        <mesh position={[-1, 0.1, 4.2]} receiveShadow>
-          <boxGeometry args={[7, 0.1, 3.2]} />
+        <mesh position={[ground.x, 0.1, ground.z]} receiveShadow>
+          <boxGeometry args={[8, 0.1, 5]} />
           <meshStandardMaterial color="#c98a4b" />
         </mesh>
-        {[-3.6, 1.6].map((gx) => (
-          <mesh key={gx} position={[gx, 0.6, 4.2]}>
+        {[-3.6, 3.6].map((gx) => (
+          <mesh key={gx} position={[ground.x + gx, 0.6, ground.z]}>
             <boxGeometry args={[0.1, 1.2, 1.2]} />
             <meshStandardMaterial color="#f4f4f4" />
           </mesh>
@@ -334,14 +336,14 @@ function Landmarks(): JSX.Element {
           <boxGeometry args={[7, 3.2, 5]} />
           <meshStandardMaterial color="#55607a" />
         </mesh>
-        <mesh position={[0, 1.2, 2.55]}>
+        <mesh position={[0, 1.2, -2.55]}>
           <boxGeometry args={[3.4, 2.4, 0.1]} />
           <meshStandardMaterial color="#c9ccd4" />
         </mesh>
       </group>
 
       {/* Park: lawn, pond, benches (trees come from the instanced greenery) */}
-      <group position={[39, 0, 67]}>
+      <group position={[PARK.x, 0, PARK.z]}>
         <mesh position={[0, 0.08, 0]} receiveShadow>
           <boxGeometry args={[12, 0.1, 10]} />
           <meshStandardMaterial color="#6cbf57" />

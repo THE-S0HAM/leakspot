@@ -8,9 +8,8 @@ import { useFrame, type RootState } from "@react-three/fiber";
 import * as THREE from "three";
 import { SECTORS } from "@leakspot/core/world";
 import { InstancedBoxes, type BoxItem } from "./InstancedBoxes";
+import { junctionDistance, sampleAt, vehicleLoops } from "./roads";
 
-const STREETS_X = [2, 25, 50, 75, 98];
-const STREETS_Z = [12, 34, 56, 78, 101];
 const LIGHT_JUNCTIONS = [
   { x: 50, z: 34 },
   { x: 50, z: 56 },
@@ -38,85 +37,49 @@ function rng(seed: number): () => number {
 
 // ---------- traffic ----------
 
-type Vehicle = {
-  horizontal: boolean;
-  line: number; // the street's fixed coordinate
-  lane: number; // ±offset from the centre line
-  dir: 1 | -1;
-  speed: number;
-  phase: number;
-  auto: boolean;
-  color: string;
-};
-
 const CAR_COLORS = ["#d94141", "#f2f2f2", "#3b6fd4", "#2b2f36", "#9aa3ad", "#e08a2e"];
 
-function makeVehicles(): Vehicle[] {
-  const r = rng(99);
-  return [...Array(12).keys()].map((i) => {
-    const horizontal = i % 2 === 0;
-    const streets = horizontal ? STREETS_Z : STREETS_X;
-    const dir: 1 | -1 = r() < 0.5 ? 1 : -1;
-    const auto = i % 3 === 0;
-    return {
-      horizontal,
-      line: streets[1 + Math.floor(r() * 3)] ?? 50,
-      lane: dir * 0.6,
-      dir,
-      speed: auto ? 5 : 7 + r() * 3,
-      phase: r() * 100,
-      auto,
-      color: auto ? "#b9d531" : (CAR_COLORS[i % CAR_COLORS.length] ?? "#ffffff"),
-    };
-  });
-}
-
-function nearJunction(v: number, streets: readonly number[]): number {
-  let d = Infinity;
-  for (const s of streets) d = Math.min(d, Math.abs(s - v));
-  return d;
-}
+// Each vehicle loops a block rectangle on the road graph (left lane, turns only at junctions).
+const VEHICLES = vehicleLoops(12, 99).map((v, i) => ({
+  ...v,
+  speed: v.auto ? 5 : 7 + (i % 3),
+  phase: (i * 37) % 100,
+  color: v.auto ? "#b9d531" : (CAR_COLORS[i % CAR_COLORS.length] ?? "#ffffff"),
+}));
 
 const Traffic = memo(function Traffic(): JSX.Element {
-  const vehicles = useMemo(() => makeVehicles(), []);
   const bodyRef = useRef<THREE.InstancedMesh>(null);
   const cabRef = useRef<THREE.InstancedMesh>(null);
-  const pos = useRef<number[]>(vehicles.map((v) => v.phase));
+  const pos = useRef<number[]>(VEHICLES.map((v) => v.phase));
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const at = useMemo(() => ({ x: 0, z: 0, heading: 0 }), []);
   const colors = useMemo<BoxItem[]>(
-    () => vehicles.map((v) => ({ p: [0, -50, 0], s: [1, 1, 1], c: v.color })),
-    [vehicles],
+    () => VEHICLES.map((v) => ({ p: [0, -50, 0], s: [1, 1, 1], c: v.color })),
+    [],
   );
   const cabs = useMemo<BoxItem[]>(
     () =>
-      vehicles.map((v) => ({ p: [0, -50, 0], s: [1, 1, 1], c: v.auto ? "#1f2a1a" : "#2b3a52" })),
-    [vehicles],
+      VEHICLES.map((v) => ({ p: [0, -50, 0], s: [1, 1, 1], c: v.auto ? "#1f2a1a" : "#2b3a52" })),
+    [],
   );
   useFrame((state, dt) => {
     const body = bodyRef.current;
     const cab = cabRef.current;
     if (!body || !cab || paused(state)) return;
     const step = Math.min(dt, 0.1);
-    vehicles.forEach((v, i) => {
-      let p = pos.current[i] ?? 0;
-      // slow down near junctions (cross streets of the other axis)
-      const cross = v.horizontal ? STREETS_X : STREETS_Z;
-      const slow = nearJunction(p, cross) < 4 ? 0.45 : 1;
-      p += v.dir * v.speed * slow * step;
-      if (p > 102) p = -2;
-      if (p < -2) p = 102;
-      pos.current[i] = p;
-      const x = v.horizontal ? p : v.line + v.lane;
-      const z = v.horizontal ? v.line + v.lane : p;
-      const ry = v.horizontal ? (v.dir > 0 ? 0 : Math.PI) : v.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
-      const len = v.auto ? 1.1 : 1.7;
-      dummy.position.set(x, 0.42, z);
-      dummy.rotation.set(0, ry, 0);
-      dummy.scale.set(len, 0.55, 0.85);
+    VEHICLES.forEach((v, i) => {
+      sampleAt(v.path, pos.current[i] ?? 0, at);
+      // slow down near junctions
+      const slow = junctionDistance(at.x, at.z) < 4 ? 0.45 : 1;
+      pos.current[i] = (pos.current[i] ?? 0) + v.speed * slow * step;
+      const len = v.auto ? 1.1 : 1.6;
+      dummy.position.set(at.x, 0.42, at.z);
+      dummy.rotation.set(0, at.heading, 0);
+      dummy.scale.set(len, 0.55, 0.8);
       dummy.updateMatrix();
       body.setMatrixAt(i, dummy.matrix);
-      dummy.position.set(x, 0.86, z);
-      dummy.scale.set(len * 0.55, 0.38, 0.75);
+      dummy.position.set(at.x, 0.86, at.z);
+      dummy.scale.set(len * 0.55, 0.38, 0.7);
       dummy.updateMatrix();
       cab.setMatrixAt(i, dummy.matrix);
     });

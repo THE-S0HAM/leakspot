@@ -48,13 +48,15 @@ function crewMarker(state: RunStateView): CrewMarker {
   if (crew.status === "idle" || !crew.incidentId) return null;
   const target = state.incidents.find((i) => i.id === crew.incidentId);
   if (!target) return null;
-  if (crew.status === "onsite") return { x: target.pin.x, z: target.pin.z, repairing: true };
+  if (crew.status === "onsite")
+    return { x: target.pin.x, z: target.pin.z, repairing: true, target: target.pin };
   const eta = crew.etaSlots ?? 2;
   const t = Math.max(0, Math.min(1, (2 - eta) / 2));
   return {
     x: DEPOT.x + (target.pin.x - DEPOT.x) * t,
     z: DEPOT.z + (target.pin.z - DEPOT.z) * t,
     repairing: false,
+    target: target.pin,
   };
 }
 

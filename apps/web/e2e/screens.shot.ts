@@ -85,3 +85,19 @@ test("idle and step to 08:30", async ({ page }) => {
     await page.screenshot({ path: `${OUT}/step-${(await clock()).replace(":", "")}.png` });
   }
 });
+
+// JOB 1: vehicles stay on the roads (close-up after zooming in on the centre).
+test("traffic close-up", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await startRun(page);
+  await settle(page);
+  await page.mouse.move(530, 480);
+  for (let i = 0; i < 6; i += 1) {
+    await page.mouse.wheel(0, -400);
+    await page.waitForTimeout(150);
+  }
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${OUT}/traffic-closeup-a.png` });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${OUT}/traffic-closeup-b.png` });
+});

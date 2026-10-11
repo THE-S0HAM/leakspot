@@ -4,6 +4,7 @@
 // Pure data; City3D turns it into instanced meshes. 1 world unit = 10 m; y is up.
 
 import { SECTORS, type Sector, type ZoneId } from "@leakspot/core/world";
+import { LANDMARK_FOOTPRINTS } from "./landmarks";
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -69,6 +70,18 @@ export function buildCity3D(
       for (let c = 0; c < COLS; c += 1) {
         const cx = xMin + GAP * (c + 1) + cellW * c + cellW / 2;
         const cz = zMin + GAP * (r + 1) + cellD * r + cellD / 2;
+        // plots under a landmark (hospital, school, park) stay empty: the landmark is drawn there
+        if (
+          LANDMARK_FOOTPRINTS.some(
+            (l) =>
+              cx + cellW / 2 > l.xMin &&
+              cx - cellW / 2 < l.xMax &&
+              cz + cellD / 2 > l.zMin &&
+              cz - cellD / 2 < l.zMax,
+          )
+        ) {
+          continue;
+        }
         const skipped = gardens.length;
         if (rng() < 0.18 && skipped < 2) {
           // an empty plot becomes a garden (lawn + trees)

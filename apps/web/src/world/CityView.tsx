@@ -12,7 +12,13 @@ import { SERVICE_PIPES, TRUNK, ZONE_MAINS, type Segment } from "./pipes";
 import { BASE_VIEWBOX, faceTop, project } from "./iso";
 import styles from "./CityView.module.css";
 
-export type CrewMarker = { x: number; z: number; repairing: boolean } | null;
+export type CrewMarker = {
+  x: number;
+  z: number;
+  repairing: boolean;
+  /** the incident pin the crew is heading to (the 3D truck routes there over the roads) */
+  target?: { x: number; z: number };
+} | null;
 
 export type CityViewProps = {
   sectorStatus: Record<SectorId, SectorStatus>;
