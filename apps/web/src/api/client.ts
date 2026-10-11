@@ -9,6 +9,7 @@ import type {
   RunStateView,
   TicketView,
 } from "./types";
+import type { StatsResponse } from "@leakspot/contracts";
 
 export class ApiCallError extends Error {
   constructor(
@@ -127,4 +128,9 @@ export function repairIncident(
   return call("POST", `/runs/${runId}/incidents/${encodeURIComponent(incidentId)}/repair`, {
     code,
   });
+}
+
+/** Public platform metrics aggregated over every run (no code needed). */
+export function getStats(): Promise<StatsResponse> {
+  return call("GET", "/stats");
 }

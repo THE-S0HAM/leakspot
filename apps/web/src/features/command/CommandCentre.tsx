@@ -29,6 +29,7 @@ import { QuestCard } from "./QuestCard";
 import { QrJoin } from "./QrJoin";
 import { WithWithout } from "./WithWithout";
 import { nextMove, type NextAction } from "./next-move";
+import { CountUp } from "../../ui/CountUp";
 import { nextBeat, type Beat, type BeatId } from "./story";
 import { Explainer, ModeChooser, StoryBar, StoryCaption } from "./StoryUI";
 import styles from "./command.module.css";
@@ -860,35 +861,6 @@ function feedColor(kind: string): string {
   if (kind === "crew") return "var(--neel)";
   if (kind === "sector") return "var(--haldi)";
   return "var(--ink-dim)";
-}
-
-function CountUp({
-  value,
-  format,
-  className,
-}: {
-  value: number;
-  format?: (n: number) => string;
-  className?: string;
-}): JSX.Element {
-  const [shown, setShown] = useState(value);
-  const prev = useRef(value);
-  useEffect(() => {
-    const from = prev.current;
-    prev.current = value;
-    if (from === value) return;
-    const t0 = performance.now();
-    const DURATION = 600;
-    let raf = 0;
-    const stepFrame = (now: number): void => {
-      const k = Math.min(1, (now - t0) / DURATION);
-      setShown(Math.round(from + (value - from) * (1 - Math.pow(1 - k, 3))));
-      if (k < 1) raf = requestAnimationFrame(stepFrame);
-    };
-    raf = requestAnimationFrame(stepFrame);
-    return () => cancelAnimationFrame(raf);
-  }, [value]);
-  return <span className={className}>{format ? format(shown) : shown}</span>;
 }
 
 function RunLobby({

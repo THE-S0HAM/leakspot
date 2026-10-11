@@ -91,6 +91,32 @@ Otherwise the incident reopens. "Closed" means the meters agree, not just that t
 The "?" button in the top bar explains the loop at any time. The city, its meters and its leaks are
 simulated. Your phone reports and the AI photo checks are real.
 
+## Live metrics
+
+The landing page and **[/metrics](https://d16l2tljxlr7ci.cloudfront.net/metrics)** show live numbers
+from every run anyone has played, refreshed every 15 seconds.
+
+**What is counted, per run:** leaks found (by kind), dispatched, repaired, verified and closed as
+logged; litres per day recovered at verification; leaks found by meters alone; phone and simulated
+reports; AI photo checks by label; every incident's priority score; the score components (W, E, C, K)
+of verified leaks; and the time from detection to verification.
+
+**How:** after every successful run write (create, tick, report, classify, dispatch, repair), the
+Lambda overwrites one small summary item for that run in the same DynamoDB table. The summary is built
+from the run state by a pure, unit-tested function, so writing it again changes nothing. A failed
+summary write is logged and never fails the request. `GET /api/stats` reads all summaries (up to
+2,000 runs), adds them up, and caches the result for 15 seconds. Runs created before metrics existed
+were added once with `scripts/backfill-stats.ts` (dry run by default, `--write` to save).
+
+**Notes:**
+
+- Every run is a simulated city day; phone reports and AI photo checks are real.
+- "Water recovered" sums each run's recovered litres per day, so it counts runs, not a real city.
+- Time to verify is measured in supply time: the simulated day jumps from 08:45 to 18:00, so wall-clock
+  minutes would overstate it. Timings exist only for runs played after they started being recorded.
+- Older runs with no phone report have no start date. They count in the totals but not in the
+  per-day charts.
+
 ## Architecture
 
 ```mermaid

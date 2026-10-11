@@ -1,4 +1,4 @@
-// App shell: the route table. / landing, /report citizen flow, /t/:runId/:reportId ticket,
+// App shell: the route table. / landing, /metrics live metrics, /report citizen flow, /t/:runId/:reportId ticket,
 // /command the Command Centre, and a catch-all 404. Each route is wrapped in an error boundary and
 // sets its own document head (title, description, theme-color).
 import type { JSX, ReactNode } from "react";
@@ -8,6 +8,7 @@ import { CommandCentre } from "../features/command/CommandCentre";
 import { ReportApp } from "../features/citizen/ReportApp";
 import { TicketPage } from "../features/citizen/TicketPage";
 import { Landing } from "../features/landing/Landing";
+import { MetricsPage } from "../features/metrics/MetricsPage";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { NotFound } from "./NotFound";
 import { useHead, type Head } from "./head";
@@ -40,6 +41,20 @@ export function App(): JSX.Element {
                 }}
               >
                 <Landing />
+              </Surface>
+            }
+          />
+          <Route
+            path="/metrics"
+            element={
+              <Surface
+                head={{
+                  title: "Live metrics · LeakSpot",
+                  description:
+                    "Every LeakSpot run, counted: leaks found and verified, water recovered, reports and AI photo checks.",
+                }}
+              >
+                <MetricsPage />
               </Surface>
             }
           />
