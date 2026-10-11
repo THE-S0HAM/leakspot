@@ -89,6 +89,9 @@ export function CodeGate({ onPass }: { onPass: (code: string) => void }): JSX.El
             />
           ))}
         </div>
+        <p className={styles.judges}>
+          Judges: the access code is in the project&apos;s submission form.
+        </p>
         <div className={styles.error}>{error}</div>
         <PixelButton onClick={() => void submit()} disabled={busy}>
           {busy ? "Checking…" : "Enter"}

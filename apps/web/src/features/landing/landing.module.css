@@ -64,3 +64,8 @@
   color: var(--ink-dim);
   font-size: var(--t-0);
 }
+.judges {
+  margin: 0;
+  font-size: 0.875rem; /* 14px, above the 13px label floor */
+  color: var(--ink-dim);
+}

@@ -59,6 +59,9 @@ export function Landing(): JSX.Element {
             </Link>
           </PixelButton>
         </div>
+        <p className={styles.judges}>
+          Judges: the access code is in the project&apos;s submission form.
+        </p>
 
         <ol className={styles.steps}>
           {STEPS.map((s) => (
