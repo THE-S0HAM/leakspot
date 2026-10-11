@@ -23,7 +23,7 @@ account and region and stores only small deployment artifacts.
 
 - **No idle cost.** There are no servers, containers, NAT gateways or provisioned capacity. With no
   traffic, the only charges are storage of a few MB.
-- **A whole demo day is small.** A simulated day is 56 fifteen-minute slots. Playing it end to end
+- **A whole demo day is small.** A simulated day is 20 fifteen-minute supply slots (06:00–08:45 and 18:00–19:45). Playing it end to end
   is a few hundred Lambda invocations and DynamoDB requests: one per tick or action, plus one read every 3
   seconds while the Command Centre is open and paused.
 - **Bedrock is the only per-use cost that scales with people.** It is called once per real citizen

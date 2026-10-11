@@ -44,6 +44,11 @@ export type Incident = {
   recoveredLitresPerDay?: number;
   /** verification progress 0..3 once verifying. */
   verifyPasses?: number;
+  /** first sim slot at which the incident was detected / dispatched / repaired / verified (for stats). */
+  detectedAt?: { day: number; slotIndex: number };
+  dispatchedAt?: { day: number; slotIndex: number };
+  repairedAt?: { day: number; slotIndex: number };
+  verifiedAt?: { day: number; slotIndex: number };
 };
 
 export const MERGE_RADIUS_UNITS = 5;

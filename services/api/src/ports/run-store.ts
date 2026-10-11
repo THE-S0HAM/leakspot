@@ -9,13 +9,25 @@ export class VersionConflictError extends Error {
   readonly code = "CONFLICT";
 }
 
-export type StoredRun = { state: RunState; version: number };
+export type StoredRun = {
+  state: RunState;
+  version: number;
+  /** ISO times kept on the item (not in RunState); absent on runs created before they were recorded. */
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 export interface RunStore {
   /** Load a run, or undefined if it does not exist. */
   get(runId: string): Promise<StoredRun | undefined>;
   /** Create a run item; rejects (CONFLICT) if one already exists at runId. */
-  create(runId: string, state: RunState): Promise<StoredRun>;
+  create(runId: string, state: RunState, now?: string): Promise<StoredRun>;
   /** Conditional put: write only if the stored version equals expectedVersion, else VersionConflictError. */
-  put(runId: string, state: RunState, expectedVersion: number): Promise<StoredRun>;
+  put(
+    runId: string,
+    state: RunState,
+    expectedVersion: number,
+    createdAt?: string,
+    now?: string,
+  ): Promise<StoredRun>;
 }

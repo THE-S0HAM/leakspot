@@ -303,3 +303,64 @@ describe("command auth: every command route, fail closed", () => {
     });
   }
 });
+
+describe("GET /stats", () => {
+  it("summarises every run after each write, publicly, in the contract shape", async () => {
+    const { createMemoryStatsStore } = await import("../adapters/memory/memory-stats-store");
+    const { StatsResponse } = await import("@leakspot/contracts");
+    let clock = Date.parse("2026-10-11T03:00:00Z");
+    const deps = makeDeps({ statsStore: createMemoryStatsStore(), now: () => new Date(clock) });
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const runId = (
+        (await route(req("POST", "/runs", { headers: command }), deps)).body as {
+          runId: string;
+        }
+      ).runId;
+      ids.push(runId);
+      clock += 60_000;
+    }
+    // drive the first run through the morning on autopilot
+    const first = ids[0] ?? "";
+    await route(
+      req("POST", `/runs/${first}/autopilot`, { headers: command, body: { on: true } }),
+      deps,
+    );
+    for (let i = 0; i < 4; i += 1) {
+      await route(
+        req("POST", `/runs/${first}/tick`, { headers: command, body: { count: 4 } }),
+        deps,
+      );
+    }
+    clock += 60_000; // past nothing: the cache is per-store and starts empty
+
+    const res = await route(req("GET", "/stats"), deps); // no code header: public
+    expect(res.status).toBe(200);
+    const body = StatsResponse.parse(res.body);
+    expect(body.totals.runs).toBe(3);
+    expect(body.totals.incidentsDetected).toBeGreaterThan(0);
+    expect(body.totals.simulatedReports).toBeGreaterThan(0);
+    expect(body.funnel.detected).toBeGreaterThanOrEqual(body.funnel.dispatched);
+    expect(body.daily.find((d) => d.date === "2026-10-11")?.runs).toBe(3);
+    expect(body.recentRuns[0]?.runId).toBe(ids[2]);
+  });
+
+  it("a failing stats store never fails a run write", async () => {
+    const deps = makeDeps({
+      statsStore: {
+        putRunSummary: async () => {
+          throw new Error("boom");
+        },
+        listRunSummaries: async () => [],
+      },
+    });
+    const created = await route(req("POST", "/runs", { headers: command }), deps);
+    expect(created.status).toBe(200);
+    const runId = (created.body as { runId: string }).runId;
+    const ticked = await route(
+      req("POST", `/runs/${runId}/tick`, { headers: command, body: { count: 1 } }),
+      deps,
+    );
+    expect(ticked.status).toBe(200);
+  });
+});

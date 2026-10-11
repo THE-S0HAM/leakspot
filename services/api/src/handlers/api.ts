@@ -5,6 +5,7 @@
 import { loadConfig } from "../config";
 import { createBedrockVisionAdapter } from "../adapters/bedrock/bedrock-vision-adapter";
 import { createDynamoRunStore } from "../adapters/dynamo/dynamo-run-store";
+import { createDynamoStatsStore } from "../adapters/dynamo/dynamo-stats-store";
 import { createS3PhotoStore } from "../adapters/s3/s3-photo-store";
 import { route, stripApiPrefix, type RouterDeps, type RouterResult } from "../http/router";
 
@@ -28,6 +29,7 @@ const region = process.env["AWS_REGION"] ?? "ap-south-1";
 
 const deps: RouterDeps = {
   runStore: createDynamoRunStore({ tableName: config.tableName }),
+  statsStore: createDynamoStatsStore({ tableName: config.tableName }),
   photoStore: createS3PhotoStore({ bucket: config.photoBucket }),
   vision: createBedrockVisionAdapter({ modelId: config.bedrockModelId }),
   commandCodeSha256: config.commandCodeSha256,

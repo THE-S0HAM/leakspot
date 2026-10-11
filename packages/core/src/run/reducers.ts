@@ -337,6 +337,7 @@ export function dispatch(state: RunState, incidentId: string): ReducerResult {
   }
   next.crew = { status: "dispatched", incidentId, etaSlots: CREW_ARRIVAL_SLOTS };
   incident.status = "dispatched";
+  incident.dispatchedAt ??= { ...next.clock };
   return finish(next, [event(next.clock, "crew", `Crew dispatched to ${incident.sectorId}`)]);
 }
 
@@ -481,6 +482,7 @@ function createHiddenIncident(
   const sector = SECTOR_BY_ID[sectorId];
   const incident: Incident = {
     id: incidentId(state),
+    detectedAt: { ...state.clock },
     kind: "hidden",
     sectorId,
     pin: { ...sector.centroid },
@@ -552,6 +554,7 @@ function attachLeakPhoto(
   // 2c) else create a visible incident at the report position.
   const incident: Incident = {
     id: incidentId(state),
+    detectedAt: { ...state.clock },
     kind: "visible",
     sectorId,
     pin: { ...position },
@@ -627,6 +630,7 @@ function createClusterIncident(
 ): Incident {
   const incident: Incident = {
     id: incidentId(state),
+    detectedAt: { ...state.clock },
     kind: "cluster",
     sectorId,
     pin,
@@ -683,6 +687,7 @@ function runAutopilot(
     if (target) {
       state.crew = { status: "dispatched", incidentId: target.id, etaSlots: CREW_ARRIVAL_SLOTS };
       target.status = "dispatched";
+      target.dispatchedAt ??= { ...slot };
       events.push(event(slot, "crew", `Crew dispatched to ${target.sectorId}`));
     }
   }
@@ -719,6 +724,7 @@ function applyRepair(state: RunState, context: RunContext, incident: Incident): 
   if (fixedId && !repaired.has(fixedId)) state.repairedLeakIds.push(fixedId);
 
   incident.excessLitresPerDayAtRepair = runtime?.excessLitresPerDay ?? 0;
+  incident.repairedAt ??= { ...state.clock };
 
   if (sectorWasSuspected) {
     incident.status = "verifying";
@@ -762,6 +768,7 @@ function progressVerification(
       incident.verifyPasses = (incident.verifyPasses ?? 0) + 1;
       if (incident.verifyPasses >= VERIFY_SLOTS) {
         incident.status = "verified";
+        incident.verifiedAt ??= { ...slot };
         incident.recoveredLitresPerDay = incident.excessLitresPerDayAtRepair ?? 0;
         state.waterRecoveredLitres += incident.recoveredLitresPerDay;
         if (runtime) {

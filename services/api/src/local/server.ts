@@ -5,6 +5,7 @@ import { createServer, type IncomingMessage } from "node:http";
 import { createFakeVision } from "../adapters/fake/fake-vision";
 import { createMemoryPhotoStore } from "../adapters/memory/memory-photo-store";
 import { createMemoryRunStore } from "../adapters/memory/memory-run-store";
+import { createMemoryStatsStore } from "../adapters/memory/memory-stats-store";
 import { route, stripApiPrefix, type RouterDeps } from "../http/router";
 
 const PORT = Number(process.env["API_PORT"] ?? "8787");
@@ -18,6 +19,7 @@ if (!/^[0-9a-f]{64}$/.test(DEV_CODE_SHA256)) {
 
 const deps: RouterDeps = {
   runStore: createMemoryRunStore(),
+  statsStore: createMemoryStatsStore(),
   photoStore: createMemoryPhotoStore(),
   vision: createFakeVision(),
   commandCodeSha256: DEV_CODE_SHA256,

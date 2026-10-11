@@ -30,16 +30,21 @@ export function createDynamoRunStore(options: DynamoRunStoreOptions): RunStore {
         new GetCommand({ TableName: table, Key: { pk: pk(runId), sk: SK }, ConsistentRead: true }),
       );
       if (!out.Item) return undefined;
-      return { state: out.Item.state as RunState, version: out.Item.version as number };
+      return {
+        state: out.Item.state as RunState,
+        version: out.Item.version as number,
+        createdAt: out.Item.createdAt as string | undefined,
+        updatedAt: out.Item.updatedAt as string | undefined,
+      };
     },
 
-    async create(runId, state) {
+    async create(runId, state, now = new Date().toISOString()) {
       const version = 1;
       try {
         await doc.send(
           new PutCommand({
             TableName: table,
-            Item: { pk: pk(runId), sk: SK, version, state },
+            Item: { pk: pk(runId), sk: SK, version, state, createdAt: now, updatedAt: now },
             ConditionExpression: "attribute_not_exists(pk)",
           }),
         );
@@ -47,16 +52,16 @@ export function createDynamoRunStore(options: DynamoRunStoreOptions): RunStore {
         if (conditionFailed(error)) throw new VersionConflictError(`run ${runId} already exists`);
         throw error;
       }
-      return { state, version };
+      return { state, version, createdAt: now, updatedAt: now };
     },
 
-    async put(runId, state, expectedVersion) {
+    async put(runId, state, expectedVersion, createdAt, now = new Date().toISOString()) {
       const version = expectedVersion + 1;
       try {
         await doc.send(
           new PutCommand({
             TableName: table,
-            Item: { pk: pk(runId), sk: SK, version, state },
+            Item: { pk: pk(runId), sk: SK, version, state, createdAt, updatedAt: now },
             ConditionExpression: "version = :expected",
             ExpressionAttributeValues: { ":expected": expectedVersion },
           }),
@@ -65,7 +70,7 @@ export function createDynamoRunStore(options: DynamoRunStoreOptions): RunStore {
         if (conditionFailed(error)) throw new VersionConflictError(`version conflict on ${runId}`);
         throw error;
       }
-      return { state, version };
+      return { state, version, createdAt, updatedAt: now };
     },
   };
 }

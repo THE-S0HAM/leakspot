@@ -32,6 +32,10 @@ import { checkJpegBase64 } from "../app/jpeg";
 import { allowReport, clientKey } from "../app/rate-limit";
 import { newReportId, newRunId, ticketCode } from "../app/ids";
 import { resolveVision } from "../app/classify";
+import { summarizeRun } from "../app/run-summary";
+import { aggregateStats } from "../app/stats";
+import type { StatsStore } from "../ports/stats-store";
+import type { StoredRun } from "../ports/run-store";
 
 export type RouterDeps = {
   runStore: RunStore;
@@ -44,6 +48,9 @@ export type RouterDeps = {
   dailyCap: number;
   newRunId?: () => string;
   newReportId?: () => string;
+  /** per-run summaries for GET /stats; optional so a missing store never breaks run writes */
+  statsStore?: StatsStore;
+  now?: () => Date;
 };
 
 export type RouterRequest = {
@@ -214,6 +221,39 @@ function stagesFor(rejected: boolean, selfReported: boolean): Stage[] {
   ];
 }
 
+/**
+ * Best effort: upsert the run's summary after a successful run write. A failure is logged and never
+ * fails the request (the run itself is already saved).
+ */
+async function recordSummary(deps: RouterDeps, runId: string, saved: StoredRun): Promise<void> {
+  if (!deps.statsStore) return;
+  try {
+    const updatedAt = saved.updatedAt ?? (deps.now?.() ?? new Date()).toISOString();
+    await deps.statsStore.putRunSummary(
+      summarizeRun(runId, saved.state, { createdAt: saved.createdAt, updatedAt }),
+    );
+  } catch (error) {
+    console.warn(
+      JSON.stringify({ msg: "run summary write failed", runId, error: (error as Error).name }),
+    );
+  }
+}
+
+const STATS_TTL_MS = 15_000;
+const STATS_MAX_RUNS = 2_000;
+const statsCache = new WeakMap<StatsStore, { at: number; body: unknown }>();
+
+/** GET /stats: aggregate every run summary; cached 15 s in this Lambda instance's memory. */
+async function statsRoute(deps: RouterDeps): Promise<RouterResult> {
+  if (!deps.statsStore) return err(503, "INTERNAL", "Stats are not configured");
+  const now = deps.now?.() ?? new Date();
+  const cached = statsCache.get(deps.statsStore);
+  if (cached && now.getTime() - cached.at < STATS_TTL_MS) return { status: 200, body: cached.body };
+  const body = aggregateStats(await deps.statsStore.listRunSummaries(STATS_MAX_RUNS), now);
+  statsCache.set(deps.statsStore, { at: now.getTime(), body });
+  return { status: 200, body };
+}
+
 /** Load → reduce → conditional put, retrying up to 3× on a version conflict; else BUSY. */
 async function mutate(
   deps: RouterDeps,
@@ -225,7 +265,14 @@ async function mutate(
     if (!stored) return err(404, "NOT_FOUND", "No such run");
     const next = reduce(stored.state);
     try {
-      const saved = await deps.runStore.put(runId, next, stored.version);
+      const saved = await deps.runStore.put(
+        runId,
+        next,
+        stored.version,
+        stored.createdAt,
+        deps.now?.().toISOString(),
+      );
+      await recordSummary(deps, runId, saved);
       return { state: saved.state };
     } catch (error) {
       if (error instanceof VersionConflictError) continue;
@@ -262,6 +309,9 @@ export async function route(req: RouterRequest, deps: RouterDeps): Promise<Route
     };
   }
 
+  // GET /stats (public, read-only platform metrics)
+  if (method === "GET" && req.path === "/stats") return statsRoute(deps);
+
   // POST /auth/check
   if (method === "POST" && req.path === "/auth/check") {
     const parsed = AuthCheckBody.safeParse(req.body);
@@ -278,7 +328,8 @@ export async function route(req: RouterRequest, deps: RouterDeps): Promise<Route
     if (unauthorized) return unauthorized;
     const runId = (deps.newRunId ?? newRunId)();
     const { state } = createRun(42);
-    await deps.runStore.create(runId, state);
+    const saved = await deps.runStore.create(runId, state, deps.now?.().toISOString());
+    await recordSummary(deps, runId, saved);
     return { status: 200, body: { runId } };
   }
 
