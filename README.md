@@ -4,7 +4,7 @@
 it with a phone photo checked by AI, a fixed score ranks the leaks, one crew fixes the top one, and
 the meters prove the fix.
 
-**[Live demo](https://d16l2tljxlr7ci.cloudfront.net)** · **[Demo video](YOUTUBE_LINK)** ·
+**[Live demo](https://d16l2tljxlr7ci.cloudfront.net)** · Demo video: link in the submission form ·
 **Access code: in the submission form**
 
 ![The LeakSpot landing page: a 3D block city of Jaldhara](docs/images/landing.jpg)
@@ -117,16 +117,16 @@ can never overwrite each other. The simulated city is rebuilt from a fixed seed 
 
 ## AWS services
 
-| Service                              | What it does in LeakSpot                                                                 | Why                                                                                    |
-| ------------------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| **Amazon CloudFront**                | Serves the site and routes `/api/*` to Lambda on one domain                              | HTTPS, caching, and no CORS between the site and the API                               |
-| **Amazon S3**                        | Hosts the web app; stores citizen photos (private, 30-day expiry)                        | Cheap, durable, and the site bucket is reachable only through CloudFront               |
-| **AWS Lambda**                       | The whole API: reports, AI checks, the simulation tick, crew actions                     | Pay per request, nothing to run between demos; arm64 for price                         |
-| **Amazon DynamoDB**                  | One item per run with all its state, version-checked writes                              | On-demand, single-digit-millisecond reads, and expired runs clean themselves up (TTL)  |
-| **Amazon Bedrock**                   | Nova 2 Lite labels each citizen photo                                                    | A managed multimodal model with no servers to run; a daily call cap keeps cost bounded |
-| **AWS IAM**                          | Least-privilege roles: Lambda may only use its table, the `photos/` prefix and Nova Lite | Every permission is scoped to one resource                                             |
-| **Amazon CloudWatch Logs**           | Lambda logs, kept for 7 days                                                             | Debugging without paying to keep old logs                                              |
-| **AWS CloudFormation (via AWS CDK)** | Creates and updates everything above as one stack                                        | Repeatable deploys from code; nothing was built by hand                                |
+| Service                              | What it does in LeakSpot                                                                 | Why                                                                              |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Amazon CloudFront**                | Serves the site and routes `/api/*` to Lambda on one domain                              | HTTPS, caching, and no CORS between the site and the API                         |
+| **Amazon S3**                        | Hosts the web app; stores citizen photos (private, 30-day expiry)                        | Cheap, durable, and the site bucket is reachable only through CloudFront         |
+| **AWS Lambda**                       | The whole API: reports, AI checks, the simulation tick, crew actions                     | Pay per request, nothing to run between demos; arm64 for price                   |
+| **Amazon DynamoDB**                  | One item per run with all its state, version-checked writes                              | On-demand, single-digit-millisecond reads, nothing to size or manage             |
+| **Amazon Bedrock**                   | Nova 2 Lite labels each citizen photo                                                    | A managed multimodal model with no servers to run; billed only per photo checked |
+| **AWS IAM**                          | Least-privilege roles: Lambda may only use its table, the `photos/` prefix and Nova Lite | Every permission is scoped to one resource                                       |
+| **Amazon CloudWatch Logs**           | Lambda logs, kept for 7 days                                                             | Debugging without paying to keep old logs                                        |
+| **AWS CloudFormation (via AWS CDK)** | Creates and updates everything above as one stack                                        | Repeatable deploys from code; nothing was built by hand                          |
 
 ## AWS open source used
 
@@ -218,17 +218,18 @@ and saved to `infra/cdk-outputs.json`. Check a deployment with
   API refuses everything. The browser keeps the code only for the current tab (sessionStorage).
 - **Citizen photos**: location data is stripped on the phone; photos sit in a private bucket, are
   shown only to the Command Centre through 5-minute signed links, and are deleted after 30 days.
-- **Abuse limits**: 20 citizen reports per 10 minutes per IP, a 400 KB photo limit checked on the
-  server, and a daily cap on AI calls.
+- **Abuse limits**: 20 citizen reports per 10 minutes per IP, and a 400 KB photo limit checked on
+  the server.
 - **No secrets in the repository**: the deploy code lives in a git-ignored file; IAM permissions are
   scoped to single resources.
 
 ## Cost
 
 Everything is serverless and on-demand: CloudFront, S3, Lambda, DynamoDB (pay per request) and
-Bedrock (pay per call, capped per day). With no traffic it costs close to nothing. A demo day is a
-few hundred Lambda calls and DynamoDB writes, well inside the AWS free tier; the only real per-use
-cost is the Bedrock call for each photo.
+Bedrock (pay per photo checked). With no traffic it costs close to nothing. A demo day is a
+few hundred Lambda calls and DynamoDB requests, much of which the AWS Free Tier can cover depending
+on the account; the only real per-use cost is the Bedrock call for each photo. Details:
+[docs/COSTS.md](docs/COSTS.md).
 
 ## Honesty notes
 

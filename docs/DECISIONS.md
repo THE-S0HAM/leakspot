@@ -14,7 +14,8 @@ The first entries record how the team plan in the ideation doc was cut down for 
 free-tier build. Kiro: do not re-introduce anything listed here without a new ADR that supersedes it.
 
 ## ADR-001: Lambda Function URL behind CloudFront instead of API Gateway
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded in part by ADR-015 (Function URL with AuthType NONE, no OAC signing or session header)
 Context: API Gateway is not part of the always-free set for new accounts and adds CORS and a second domain.
 Decision: one Lambda Function URL (AuthType AWS_IAM) reached only through CloudFront Origin Access Control,
 served under `/api/*` on the same domain as the web app.
@@ -22,14 +23,16 @@ Consequences: same-origin, no CORS, always-free. POST bodies must carry `x-amz-c
 session travels in `x-leakspot-session` because the `Authorization` header conflicts with OAC signing.
 
 ## ADR-002: Access code + signed session instead of Amazon Cognito
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded by ADR-015 (the code travels in a header on every request; no session token)
 Context: judges need instant access; citizens need none; one person cannot also build user management.
 Decision: public citizen side; one shared 8-character command code (SHA-256 compared in Lambda) exchanged
 for a 12-hour HMAC-signed session token. The code lives only in `.env.deploy`.
 Consequences: no user accounts or roles beyond "command". Brute force is rate-limited. Rotation = redeploy.
 
 ## ADR-003: Async worker Lambda + stage log instead of Step Functions
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded by ADR-015 (one Lambda; Bedrock is called synchronously)
 Context: the report pipeline is five short steps; Step Functions adds cost risk and setup for a solo build.
 Decision: the API Lambda returns 202 and invokes a worker Lambda asynchronously; the worker appends each
 stage to the report item, which the UI polls to drive the PipelineLog.
@@ -37,32 +40,37 @@ Consequences: the loader still shows real pipeline state; retries are handled by
 idempotent stage writes.
 
 ## ADR-004: No SMS or phone numbers; SNS used only for alarm email
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded in part by ADR-015 (no SMS still holds; no SNS or alarms were deployed)
 Context: SMS is billed per message and Indian SMS needs sender registration; phone numbers are personal data.
 Decision: citizens track tickets in the app; SNS sends CloudWatch alarm emails to the developer only.
 Consequences: no notification when a repair is confirmed unless the citizen reopens the ticket.
 
 ## ADR-005: S3 + CloudFront via CDK instead of Amplify Hosting
+
 Date: 2026-10-09 · Status: accepted
 Context: everything else is in one CDK stack; Amplify would add a second deployment path.
 Decision: the web build is deployed by CDK BucketDeployment to a private bucket behind the same distribution.
 Consequences: one `npm run deploy` for the whole system.
 
 ## ADR-006: One DynamoDB table in provisioned mode, no indexes
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded by ADR-016 (on-demand capacity)
 Context: the always-free DynamoDB allowance covers provisioned capacity only.
 Decision: single table, PROVISIONED 10 RCU / 15 WCU, all access by partition key (`RUN#<id>`), TTL for cleanup,
 optimistic locking on the run aggregate.
 Consequences: a few judges can play at once; heavier bursts get `BUSY` and the client backs off.
 
 ## ADR-007: Amazon Nova Lite on Bedrock with cache and daily cap
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded in part by ADR-015 (no result cache or daily cap; self-reported fallback kept)
 Context: Bedrock has no free tier; spend must stay tiny and bounded.
 Decision: Nova 2 Lite via the global cross-Region profile from ap-south-1 (fallback: Nova Lite via the APAC
 profile); results cached by photo SHA-256; daily cap; self-reported fallback.
 Consequences: scripted photos are classified once ever; worst-case daily spend is bounded by the cap.
 
 ## ADR-008: Removed from the team plan
+
 Date: 2026-10-09 · Status: accepted
 Removed: Amazon Location Service, SageMaker, Isolation Forest, image-similarity deduplication,
 Bedrock-written briefs, IoT hardware, BattLeDIM cross-check, native apps, offline report queue, separate
@@ -70,7 +78,9 @@ engineer/officer logins, before/after repair photos, a separate sandbox mode (th
 Reason: none is needed for the core loop; each adds a failure point for a one-person build.
 
 ## ADR-009: Changes to engine numbers relative to the ideation doc
+
 Date: 2026-10-09 · Status: accepted
+
 - Data-gap threshold raised from 10% to 20% missing meters: with ~15 meters per sector and 2% missing per
   reading, 10% would trigger on about 3.5% of slots and break detection.
 - Trunk-main criticality applies only when the pin is within 20 m of the main (on it), not within 300 m.
@@ -83,18 +93,21 @@ Date: 2026-10-09 · Status: accepted
   history excursion 0.052 against the 0.08 threshold), all repairs verify, runtime scores C3 96–99, B2 38–40.
 
 ## ADR-010: Showcase run driven by EventBridge Scheduler
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded by ADR-015 (no scheduler or showcase run was deployed)
 Context: judges arrive at random times; the landing page must always show a living city.
 Decision: a permanent `SHOWCASE` run advanced every 5 minutes by EventBridge Scheduler with autopilot on, and
 reset when the scenario ends. Private runs are for hands-on play.
 Consequences: about 8,640 scheduled invocations per month, inside the free allowances.
 
 ## ADR-011: Kickoff clarifications
-Date: 2026-10-09 · Status: accepted
+
+Date: 2026-10-09 · Status: superseded in part by ADR-015 and ADR-017 (no Showcase run or scheduler; polling every 3 s while paused)
 Context: a review of the plan before CP0 found gaps and small contradictions. Each is settled here.
 Guiding principle: every feature maps to a judging criterion and fits one sentence of the demo video;
 when two designs both work, choose the simpler one.
 Decision:
+
 1. Tooling hooks: path matchers accept both `/` and `\`; each hook is triggered once in CP0 and the result
    logged in the development log.
 2. No placeholder scripts: each root npm script arrives in the checkpoint that makes it work (CP0 build, test,
@@ -136,11 +149,12 @@ Decision:
     Archived).
 17. Each sector inlet meter sits at the midpoint of the sector edge closest to the central avenue (x = 50);
     pipe routes along streets are visual only.
-Consequences: the engine, API and UI checkpoints start from one unambiguous rule set. Showcase reads are
-mostly served from the CloudFront cache, so DynamoDB read capacity is no longer tied to the number of open
-landing pages.
+    Consequences: the engine, API and UI checkpoints start from one unambiguous rule set. Showcase reads are
+    mostly served from the CloudFront cache, so DynamoDB read capacity is no longer tied to the number of open
+    landing pages.
 
 ## ADR-012: Corrected the Crockford base32 character class in the id schemas
+
 Date: 2026-10-09 · Status: accepted
 Context: design.md and tasks.md (CP0) specified the Crockford char class as `[0-9A-HJ-NP-TV-Z]`. The range
 `J-N` includes `L`, so that class wrongly accepts `L`, which Crockford base32 excludes (no I, L, O, U)
@@ -153,6 +167,7 @@ Consequences: id validation rejects I, L, O, U as intended. The CP1 ULID/run-id 
 this alphabet so generated ids pass `ReportId`/`RunId`.
 
 ## ADR-013: TypeScript 6.0.3 instead of TypeScript 7
+
 Date: 2026-10-09 · Status: accepted
 Context: CP0 first installed `typescript` 7.0.2 (the npm `latest`). `typescript-eslint` 8.71.1, its parser and
 `typescript-estree` declare the peer `typescript >=4.8.4 <6.1.0`; TS 7 offers no compiler API that
@@ -163,24 +178,27 @@ Consequences: lint and typecheck share one compiler version with no peer warning
 TypeScript mid-project. This supersedes the "latest stable major at CP0" rule for TypeScript only.
 
 ## ADR-014: CP0 test tooling and supporting packages
+
 Date: 2026-10-09 · Status: accepted
 Context: tech.md names the main libraries per workspace; CP0 also needs a few packages it does not name.
 Decision: install these at exact versions, each for one reason:
+
 - `@vitest/coverage-v8` 5.0.3 (root, dev): coverage provider for the gates in `npm run verify`.
 - `jsdom` 30.1.2 (apps/web, dev): DOM environment for the web component tests.
 - `@types/node` 22.20.5 (root, dev): Node typings for scripts, the API and infra (runtime floor Node 22).
 - `@types/react` 19.3.0 and `@types/react-dom` 19.3.0 (apps/web, dev): typings for the strict React shell.
 - `zod` 4.6.5 as a direct dependency of `services/api`: `config.ts` validates the environment itself, so it
   declares zod instead of relying on the copy installed for `packages/contracts`.
-`esbuild` and the `aws-cdk` CLI are pinned but not installed until CP3.
-Consequences: every installed package is used in CP0; nothing is pulled in transitively by accident.
+  `esbuild` and the `aws-cdk` CLI are pinned but not installed until CP3.
+  Consequences: every installed package is used in CP0; nothing is pulled in transitively by accident.
 
 ## ADR-015: Deadline mode
+
 Date: 2026-10-10 · Status: accepted
 Context: under 10 hours to submission; the checkpoint/spec workflow and several free-tier hardening
 features cannot all land in time. The core loop and demo must take priority.
-Decision: adopt deadline mode, defined in `.kiro/steering/00-deadline-mode.md`, which overrides every
-other steering file where they conflict. It drops the spec workflow, coverage thresholds, and the
+Decision: adopt deadline mode, a short written rule set for the rest of the build, which overrides the
+earlier plan where they conflict. It drops the spec workflow, coverage thresholds, and the
 scan/stub scripts; cuts three.js (isometric SVG city instead), the showcase run and scheduler, replay,
 sound, sessions, rate limits, caps, the vision cache, the worker Lambda, OAC-to-Lambda, Playwright; and
 simplifies the architecture to one Lambda behind a Function URL (AuthType NONE) served through CloudFront
@@ -189,10 +207,11 @@ SHA-256. It keeps the validated engine numbers and score vectors, the access cod
 real-step pipeline log, the with-vs-without panel, and the design-system tokens and fonts.
 Consequences: supersedes ADR-001 (OAC + session + x-amz-content-sha256), ADR-003 (worker Lambda), and
 ADR-010 (scheduler-driven showcase) for the remainder of this build; relaxes the DynamoDB capacity of
-ADR-006 to 25/25. CP0 is marked PARTIAL and the checkpoint gates no longer apply. See the steering file
-for the authoritative list.
+ADR-006 to 25/25. CP0 is marked PARTIAL and the checkpoint gates no longer apply. Some cut items came
+back later; see ADR-017.
 
 ## ADR-016: Move to account 838814606498 (profile Dev-AWSTW); DynamoDB on-demand
+
 Date: 2026-10-10 · Status: accepted
 Context: the original account 753036487793 hit a new-account daily Bedrock token quota (ADR-015 debugging
 confirmed ThrottlingException "Too many tokens per day" on both Nova profiles); it resets after the
@@ -206,3 +225,17 @@ use its free provisioned-capacity allowance elsewhere and our request volume is 
 no GSI/stream/PITR. Supersedes the account/profile in ADR-001/002/011 and the provisioned mode in ADR-006.
 Consequences: deploys and probes target the new account via Dev-AWSTW. On-demand DynamoDB is billed per
 request (fractions of a cent at our volume) rather than from the always-free provisioned tier.
+
+## ADR-017: Brought back after deadline mode
+
+Date: 2026-10-11 · Status: accepted
+Context: the core loop shipped early under ADR-015, which left time to restore some of what it had cut,
+each only once the simpler version was working and tested.
+Decision: restore (1) the three.js city (react-three-fiber, lazy-loaded, with the SVG map as the
+fallback when WebGL is missing or fails), (2) the citizen-report rate limit (20 per 10 minutes per IP;
+command routes unlimited), (3) Playwright end-to-end tests (health bar, access code) plus screenshot
+scripts kept out of the default run, and (4) a guided "Watch it work" mode whose captions are triggered
+by real state changes. Still not restored: the worker Lambda, the scheduler and showcase run, sessions,
+the Bedrock result cache and daily cap, alarms and SNS.
+Consequences: the architecture stays one synchronous Lambda (docs/ARCHITECTURE.md). The web bundle for
+citizens is unchanged because the 3D city is a separate chunk.
