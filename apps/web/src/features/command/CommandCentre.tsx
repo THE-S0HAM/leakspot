@@ -69,6 +69,18 @@ function dispatchReason(state: RunStateView, incidentId: string): string | null 
 type Tab = "incidents" | "impact";
 type Popup = { id: number; text: string; kind: "info" | "confirmed" | "verified" };
 
+/** A 401 means the remembered code is stale: forget it (this tab only) and show the gate again. */
+function forgetCodeOn401(error: unknown, setCode: (c: string | null) => void): boolean {
+  if (!(error instanceof ApiCallError) || error.status !== 401) return false;
+  try {
+    sessionStorage.removeItem(CODE_KEY);
+  } catch {
+    // ignore
+  }
+  setCode(null);
+  return true;
+}
+
 export function CommandCentre(): JSX.Element {
   // Remember the code for this tab so a reload with ?run= goes straight back to the run (sessionStorage,
   // try/catch; closing the tab clears it). The gate still appears on a fresh tab with no saved code.
@@ -203,6 +215,7 @@ export function CommandCentre(): JSX.Element {
         setState(s);
         setEnded(false);
       } catch (error) {
+        if (forgetCodeOn401(error, setCode)) return;
         if (error instanceof ApiCallError && error.status === 404) {
           setEnded(true);
         } else {
@@ -225,6 +238,7 @@ export function CommandCentre(): JSX.Element {
         setShowBriefing(true);
         await resume(id, accessCode);
       } catch (error) {
+        if (forgetCodeOn401(error, setCode)) return;
         showToast(error instanceof ApiCallError ? error.message : "Could not start a run");
       }
     },
@@ -288,6 +302,7 @@ export function CommandCentre(): JSX.Element {
       try {
         apply(await tickRun(runId, code, count));
       } catch (error) {
+        if (forgetCodeOn401(error, setCode)) return;
         if (error instanceof ApiCallError && /day is over/i.test(error.message)) {
           setPlaying(false);
           setDayOver(true);
@@ -328,6 +343,7 @@ export function CommandCentre(): JSX.Element {
           if (!stopped) apply(s);
           backoff = TICK_MS;
         } catch (error) {
+          if (forgetCodeOn401(error, setCode)) return;
           if (error instanceof ApiCallError && error.status === 404) {
             setEnded(true);
             return;
@@ -350,6 +366,7 @@ export function CommandCentre(): JSX.Element {
       try {
         apply(await fn());
       } catch (error) {
+        if (forgetCodeOn401(error, setCode)) return;
         showToast(error instanceof ApiCallError ? error.message : "Something went wrong");
       } finally {
         setBusy(false);

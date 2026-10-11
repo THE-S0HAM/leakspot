@@ -9,6 +9,12 @@ import { route, stripApiPrefix, type RouterDeps } from "../http/router";
 
 const PORT = Number(process.env["API_PORT"] ?? "8787");
 const DEV_CODE_SHA256 = process.env["COMMAND_CODE_SHA256"] ?? "";
+if (!/^[0-9a-f]{64}$/.test(DEV_CODE_SHA256)) {
+  // Fail closed: without a valid hash every command route answers 401 (never open).
+  console.warn(
+    "[leakspot-api] COMMAND_CODE_SHA256 missing or invalid: all command routes will deny",
+  );
+}
 
 const deps: RouterDeps = {
   runStore: createMemoryRunStore(),

@@ -242,3 +242,64 @@ describe("not found", () => {
     expect([409, 200]).toContain(res.status);
   });
 });
+
+describe("command auth: every command route, fail closed", () => {
+  // A real run + report so 401 (not 404) is what each route would otherwise answer.
+  async function setup(): Promise<{ deps: RouterDeps; runId: string; reportId: string }> {
+    const deps = makeDeps();
+    const runId = (
+      (await route(req("POST", "/runs", { headers: command }), deps)).body as { runId: string }
+    ).runId;
+    const created = await route(
+      req("POST", `/runs/${runId}/reports`, {
+        body: { type: "leak_photo", x: 30, z: 40, lang: "en", photoJpegBase64: JPEG_B64 },
+      }),
+      deps,
+    );
+    return { deps, runId, reportId: (created.body as { reportId: string }).reportId };
+  }
+
+  const routes = (runId: string, reportId: string): [string, string, unknown?][] => [
+    ["POST", "/runs"],
+    ["GET", `/runs/${runId}/state`],
+    ["POST", `/runs/${runId}/tick`, { count: 1 }],
+    ["POST", `/runs/${runId}/autopilot`, { on: true }],
+    ["POST", `/runs/${runId}/incidents/#1/dispatch`],
+    ["POST", `/runs/${runId}/incidents/#1/repair`],
+    ["GET", `/runs/${runId}/reports/${reportId}/photo`],
+  ];
+
+  for (const [label, headers] of [
+    ["no header", {}],
+    ["a wrong code", { "x-leakspot-code": CODE === "ABCDEFGH" ? "HGFEDCBA" : "ABCDEFGH" }],
+    ["a blank code", { "x-leakspot-code": "   " }],
+  ] as const) {
+    it(`answers 401 on every command route with ${label}`, async () => {
+      const { deps, runId, reportId } = await setup();
+      for (const [method, path, body] of routes(runId, reportId)) {
+        const res = await route(req(method, path, { headers, body }), deps);
+        expect(res.status, `${method} ${path}`).toBe(401);
+      }
+    });
+  }
+
+  for (const [label, hash] of [
+    ["missing", undefined],
+    ["empty", ""],
+    ["malformed", "not-a-hash"],
+    ["the hash of an empty code", createHash("sha256").update("").digest("hex")],
+  ] as const) {
+    it(`denies everything when COMMAND_CODE_SHA256 is ${label}`, async () => {
+      const deps = makeDeps({ commandCodeSha256: hash as unknown as string });
+      for (const code of [CODE, "", "   ", "ABCDEFGH"]) {
+        const check = await route(req("POST", "/auth/check", { body: { code } }), deps);
+        expect(check.status).not.toBe(200);
+        const run = await route(
+          req("POST", "/runs", { headers: { "x-leakspot-code": code } }),
+          deps,
+        );
+        expect(run.status).toBe(401);
+      }
+    });
+  }
+});
