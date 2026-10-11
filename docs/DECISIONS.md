@@ -96,7 +96,7 @@ Guiding principle: every feature maps to a judging criterion and fits one senten
 when two designs both work, choose the simpler one.
 Decision:
 1. Tooling hooks: path matchers accept both `/` and `\`; each hook is triggered once in CP0 and the result
-   logged in DEVLOG.
+   logged in the development log.
 2. No placeholder scripts: each root npm script arrives in the checkpoint that makes it work (CP0 build, test,
    lint, typecheck, verify:fast, verify; CP2 dev; CP3 deploy, smoke; CP5 e2e; CP8 e2e:live). CP0 gives every
    workspace a small real module with real tests (core units, contract ids, API config, web shell, empty

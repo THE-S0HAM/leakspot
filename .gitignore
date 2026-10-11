@@ -18,3 +18,14 @@ recordings/
 
 # Playwright visual checks
 apps/web/e2e/screenshots/
+
+# Private working notes and tooling state (kept on disk, not published)
+CLAUDE.md
+.kiro/
+.kiroignore
+MASTER_PROMPT.md
+KIT_README.md
+setup/
+docs/FINAL_PLAN.md
+docs/CHECKPOINTS.md
+docs/DEVLOG.md
