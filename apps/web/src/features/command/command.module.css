@@ -531,3 +531,191 @@
     bottom: 0;
   }
 }
+
+/* ---------- mode chooser, guided story, explainer ---------- */
+.chooser {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+}
+.chooserTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-3);
+  margin: 0;
+  text-align: center;
+}
+.chooserCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.modeCard {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  text-align: left;
+  min-height: 150px;
+  padding: 20px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--cloud-2);
+  border: 2px solid var(--rule);
+  box-shadow: 0 4px 0 var(--rule);
+  cursor: pointer;
+  transition:
+    transform 80ms ease-out,
+    box-shadow 80ms ease-out,
+    border-color 150ms ease-out;
+}
+.modeCard:hover {
+  border-color: var(--jal);
+}
+.modeCard:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--rule);
+}
+.modeCard:focus-visible {
+  outline: 3px solid var(--jal);
+  outline-offset: 2px;
+}
+.modeName {
+  font-size: var(--t-2);
+  font-weight: 700;
+  color: var(--jal);
+  font-variant-numeric: tabular-nums;
+}
+.modeText {
+  font-size: var(--t-0);
+  color: var(--ink-dim);
+  line-height: 1.5;
+}
+.chooserWrap {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(14, 24, 40, 0.82);
+}
+
+.caption,
+.storyBar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  background: var(--cloud-2);
+  border: 1px solid var(--jal);
+  box-shadow: 0 4px 0 var(--rule);
+}
+.caption {
+  width: min(560px, 94%);
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  animation: captionIn 200ms ease-out;
+}
+.captionStep {
+  font-size: var(--t-0);
+  color: var(--jal);
+  font-variant-numeric: tabular-nums;
+}
+.captionTitle {
+  font-size: var(--t-2);
+}
+.captionText {
+  margin: 0;
+  font-size: var(--t-1);
+  line-height: 1.5;
+}
+.captionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.storyBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  font-size: var(--t-0);
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+@keyframes captionIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .caption {
+    animation: none;
+  }
+}
+
+.loop {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.loop li {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  align-items: start;
+  line-height: 1.45;
+}
+.loopNum {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: var(--jal);
+  color: var(--night);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.helpBtn {
+  min-width: 44px;
+}
+
+/* Top bar on desktop: one line, never wraps (1024–1920+). Labels shorten below 1600 px. */
+.shortLabel {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .topbar {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    min-width: 0;
+    gap: 10px 14px;
+  }
+  .topbar > * {
+    flex-shrink: 0;
+  }
+  .topbar > .spacer {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .longLabel {
+    display: none;
+  }
+  .shortLabel {
+    display: inline;
+  }
+  .healthBar {
+    width: 110px;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .healthBar {
+    width: 72px;
+  }
+}

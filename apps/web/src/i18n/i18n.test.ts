@@ -26,3 +26,26 @@ describe("i18n parity", () => {
     }
   });
 });
+
+describe("finished PipelineLog steps read in the past tense", () => {
+  // Keys the citizen log shows with state "done" (ReportApp toLogLines).
+  const DONE = [
+    "stageReceived",
+    "stageStored",
+    "stageLocated",
+    "stageClassified",
+    "stageMatched",
+    "stageScored",
+    "stageDone",
+  ] as const;
+  it.each([
+    ["en", en, /\bchecking\b|\bmatching\b|ing$/],
+    ["hi", hi, /रहा है|रही है|रहे हैं|रही हैं/],
+    ["mr", mr, /आहे$|त आहे/],
+  ])("%s has no progressive form on a done step", (name, table, progressive) => {
+    for (const k of DONE) expect(table[k], `${name} ${k}`).not.toMatch(progressive);
+  });
+  it("Marathi says the photo was checked", () => {
+    expect(mr.stageClassified).toBe("फोटो तपासला");
+  });
+});

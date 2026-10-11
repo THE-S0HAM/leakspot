@@ -66,6 +66,8 @@ export const hi: Strings = {
   stageLocated: "जगह पता चली",
   stageClassifying: "फ़ोटो जाँची जा रही है",
   stageMatching: "आस-पास की रिपोर्ट मिलाई जा रही हैं",
+  stageClassified: "फ़ोटो जाँची गई",
+  stageMatched: "आस-पास की रिपोर्ट मिलाई गईं",
   stageScored: "स्कोर दिया",
   stageDone: "पूरा हुआ",
 

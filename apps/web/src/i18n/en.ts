@@ -68,6 +68,8 @@ export const en = {
   stageLocated: "located",
   stageClassifying: "checking the photo",
   stageMatching: "matching nearby reports",
+  stageClassified: "photo checked",
+  stageMatched: "matched nearby reports",
   stageScored: "scored",
   stageDone: "done",
 

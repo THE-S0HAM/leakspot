@@ -29,6 +29,8 @@ import { QuestCard } from "./QuestCard";
 import { QrJoin } from "./QrJoin";
 import { WithWithout } from "./WithWithout";
 import { nextMove, type NextAction } from "./next-move";
+import { nextBeat, type Beat, type BeatId } from "./story";
+import { Explainer, ModeChooser, StoryBar, StoryCaption } from "./StoryUI";
 import styles from "./command.module.css";
 
 const TICK_MS = 3000;
@@ -111,7 +113,21 @@ export function CommandCentre(): JSX.Element {
   const [popups, setPopups] = useState<Popup[]>([]);
   const [viewBox, setViewBox] = useState(BASE_VIEWBOX);
   const [showBriefing, setShowBriefing] = useState(true);
+  // How the judge watches: the guided story ("Watch it work") or manual ("Run it yourself").
+  const [mode, setMode] = useState<"story" | "manual">("manual");
+  const [beat, setBeat] = useState<Beat | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [focus, setFocus] = useState<SectorId | null>(null);
+  const modeRef = useRef<"story" | "manual">("manual");
+  const skippedRef = useRef(false);
+  const beatOpen = useRef(false);
+  const fired = useRef(new Set<BeatId>());
+  const lastState = useRef<RunStateView | null>(null);
   const [dayOver, setDayOver] = useState(false);
+  const dayOverRef = useRef(false);
+  useEffect(() => {
+    dayOverRef.current = dayOver;
+  }, [dayOver]);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [ended, setEnded] = useState(false);
   const [confirmNewRun, setConfirmNewRun] = useState(false);
@@ -180,17 +196,34 @@ export function CommandCentre(): JSX.Element {
     }
   }, []);
 
+  // Guided story: on every new state (and at day end) fire the next beat that became TRUE. A beat
+  // pauses play, eases the camera to its sector and shows its caption; it continues after ~4 s.
+  const storyCheck = useCallback((next: RunStateView | null, over: boolean) => {
+    if (modeRef.current !== "story" || skippedRef.current || beatOpen.current) return;
+    const s = next ?? lastState.current;
+    if (!s) return;
+    const b = nextBeat(s, fired.current, over);
+    if (!b) return;
+    fired.current.add(b.id);
+    beatOpen.current = true;
+    setBeat(b);
+    setPlaying(false);
+    if (b.sector) setFocus(b.sector);
+  }, []);
+
   const apply = useCallback(
     (next: RunStateView) => {
       absorbEvents(next);
       absorbReports(next);
+      lastState.current = next;
       setState(next);
+      storyCheck(next, false);
     },
-    [absorbEvents, absorbReports],
+    [absorbEvents, absorbReports, storyCheck],
   );
 
   // The run id lives in the URL (?run=) and localStorage, so a reload resumes the SAME run. Only the
-  // explicit "Start my run" / "New run" buttons ever call createRun — no error path creates a run.
+  // explicit mode-chooser cards ever call createRun — no error path creates a run.
   const syncRunId = useCallback(
     (id: string | null) => {
       setRunId(id);
@@ -230,22 +263,63 @@ export function CommandCentre(): JSX.Element {
 
   // Explicit new run (lobby button / New-run confirm). The ONLY caller of createRun.
   const createNewRun = useCallback(
-    async (accessCode: string) => {
+    async (accessCode: string, how: "story" | "manual" = "manual") => {
       try {
+        setBusy(true);
         const { runId: id } = await createRun(accessCode);
         seenEvents.current = 0;
         syncRunId(id);
         setEnded(false);
         setDayOver(false);
-        setShowBriefing(true);
+        fired.current = new Set();
+        beatOpen.current = false;
+        skippedRef.current = false;
+        setBeat(null);
+        setFocus(null);
+        modeRef.current = how;
+        setMode(how);
+        setShowBriefing(how === "manual");
         await resume(id, accessCode);
+        if (how === "story") {
+          // Watch it work: autopilot on, 2×, play. Beats come from the state changes that follow.
+          const s = await setAutopilot(id, accessCode, true);
+          lastState.current = s;
+          setState(s);
+          setSpeed(2);
+          setPlaying(true);
+        }
       } catch (error) {
         if (forgetCodeOn401(error, setCode)) return;
         showToast(error instanceof ApiCallError ? error.message : "Could not start a run");
+      } finally {
+        setBusy(false);
       }
     },
     [resume, showToast, syncRunId],
   );
+
+  // Story controls. Next: continue now. Skip: no more captions, autopilot keeps running. Take over:
+  // autopilot off, paused, manual (Next-move bar).
+  const continueStory = useCallback(() => {
+    beatOpen.current = false;
+    setBeat(null);
+    if (!dayOverRef.current) setPlaying(true);
+    // a later beat may already be true (e.g. dispatch right after the confirmation)
+    void Promise.resolve().then(() => storyCheck(null, false));
+  }, [storyCheck]);
+  const skipStory = useCallback(() => {
+    skippedRef.current = true;
+    beatOpen.current = false;
+    setBeat(null);
+    if (!dayOverRef.current) setPlaying(true);
+  }, []);
+
+  // Each caption holds ~4 s, then the story continues by itself.
+  useEffect(() => {
+    if (!beat) return;
+    const h = setTimeout(continueStory, 4000);
+    return () => clearTimeout(h);
+  }, [beat, continueStory]);
 
   // On passing the gate: resume the run from the URL/localStorage if there is one; else stay in the
   // lobby. This runs once per code change.
@@ -308,6 +382,7 @@ export function CommandCentre(): JSX.Element {
         if (error instanceof ApiCallError && /day is over/i.test(error.message)) {
           setPlaying(false);
           setDayOver(true);
+          storyCheck(null, true);
         } else {
           showToast(error instanceof ApiCallError ? error.message : "The tick failed; retrying");
         }
@@ -316,7 +391,7 @@ export function CommandCentre(): JSX.Element {
         tickInFlight.current = false;
       }
     },
-    [runId, code, apply, showToast],
+    [runId, code, apply, showToast, storyCheck],
   );
 
   // Play loop: tick every 3 s while visible; a tick in flight is skipped (doTick guards it).
@@ -377,6 +452,15 @@ export function CommandCentre(): JSX.Element {
     [apply, showToast],
   );
 
+  const takeOver = useCallback(() => {
+    modeRef.current = "manual";
+    setMode("manual");
+    beatOpen.current = false;
+    setBeat(null);
+    setPlaying(false);
+    if (runId && code) void action(() => setAutopilot(runId, code, false));
+  }, [action, runId, code]);
+
   // Ease the camera to a sector's projected centre (viewBox tween, ~400 ms).
   const easeTo = useCallback((sectorId: SectorId | null) => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -408,6 +492,7 @@ export function CommandCentre(): JSX.Element {
   const selectSector = useCallback(
     (id: SectorId | null) => {
       setSelected(id);
+      setFocus(id);
       easeTo(id);
     },
     [easeTo],
@@ -440,7 +525,8 @@ export function CommandCentre(): JSX.Element {
       <RunEndedPanel
         onNewRun={() => {
           syncRunId(null);
-          void createNewRun(code);
+          setState(null);
+          setEnded(false);
         }}
       />
     );
@@ -450,7 +536,9 @@ export function CommandCentre(): JSX.Element {
   if (!runId || !state) {
     return (
       <RunLobby
-        onStart={() => void createNewRun(code)}
+        onWatch={() => void createNewRun(code, "story")}
+        onSelf={() => void createNewRun(code, "manual")}
+        busy={busy}
         onResume={runId ? () => void resume(runId, code) : undefined}
         toast={toast}
       />
@@ -482,7 +570,8 @@ export function CommandCentre(): JSX.Element {
         </span>
         <span className={styles.spacer} />
         <span className={styles.hudStat}>
-          City water health
+          <span className={styles.longLabel}>City water health</span>
+          <span className={styles.shortLabel}>Health</span>
           <span className={styles.healthBar} data-testid="health-bar">
             <span
               className={styles.healthFill}
@@ -493,12 +582,24 @@ export function CommandCentre(): JSX.Element {
           <CountUp className={styles.healthNum} value={state.cityHealth} />
         </span>
         <span className={styles.hudStat}>
-          Water recovered <CountUp value={state.waterRecoveredLitres} format={lakh} />
+          <span className={styles.longLabel}>Water recovered</span>
+          <span className={styles.shortLabel}>Recovered</span>{" "}
+          <CountUp value={state.waterRecoveredLitres} format={lakh} />
         </span>
         <PixelButton variant="secondary" onClick={() => setPhoneOpen(true)}>
           Phone
         </PixelButton>
+        <PixelButton
+          variant="secondary"
+          className={styles.helpBtn}
+          aria-label="How LeakSpot works"
+          onClick={() => setHelpOpen(true)}
+        >
+          ?
+        </PixelButton>
       </header>
+
+      {helpOpen && <Explainer onClose={() => setHelpOpen(false)} />}
 
       {phoneOpen && (
         <div className={styles.modalWrap} onClick={() => setPhoneOpen(false)}>
@@ -527,14 +628,25 @@ export function CommandCentre(): JSX.Element {
           touchRef.current = e.pointerType === "touch";
         }}
       >
-        <div className={styles.nextMove}>
-          <span className={styles.nextMoveText}>{move.text}</span>
-          {move.action && move.label && (
-            <PixelButton onClick={() => move.action && runAction(move.action)}>
-              {move.label}
-            </PixelButton>
-          )}
-        </div>
+        {mode === "story" && beat ? (
+          <StoryCaption
+            beat={beat}
+            onNext={continueStory}
+            onSkip={skipStory}
+            onTakeOver={takeOver}
+          />
+        ) : mode === "story" && !dayOver ? (
+          <StoryBar onTakeOver={takeOver} />
+        ) : (
+          <div className={styles.nextMove}>
+            <span className={styles.nextMoveText}>{move.text}</span>
+            {move.action && move.label && (
+              <PixelButton onClick={() => move.action && runAction(move.action)}>
+                {move.label}
+              </PixelButton>
+            )}
+          </div>
+        )}
 
         <div className={styles.popups}>
           {popups.map((p) => (
@@ -560,6 +672,7 @@ export function CommandCentre(): JSX.Element {
           simClock={state.simClock}
           recoveredLitres={state.waterRecoveredLitres}
           fitKey={fitKey}
+          focus={focus}
           onSelectSector={selectSector}
           onHoverSector={(id) => setHover(touchRef.current ? null : id)}
           onSelectReport={setSelectedReport}
@@ -574,14 +687,16 @@ export function CommandCentre(): JSX.Element {
           />
         )}
 
-        {showBriefing && <MissionBriefing onStart={() => setShowBriefing(false)} />}
+        {showBriefing && mode === "manual" && (
+          <MissionBriefing onStart={() => setShowBriefing(false)} />
+        )}
         {dayOver && (
           <DayReport
             state={state}
             onNewRun={() => {
+              setPlaying(false);
               syncRunId(null);
               setState(null);
-              void createNewRun(code);
             }}
           />
         )}
@@ -594,9 +709,9 @@ export function CommandCentre(): JSX.Element {
                 <PixelButton
                   onClick={() => {
                     setConfirmNewRun(false);
+                    setPlaying(false);
                     syncRunId(null);
                     setState(null);
-                    void createNewRun(code);
                   }}
                 >
                   Start new run
@@ -777,21 +892,24 @@ function CountUp({
 }
 
 function RunLobby({
-  onStart,
+  onWatch,
+  onSelf,
   onResume,
+  busy,
   toast,
 }: {
-  onStart: () => void;
+  onWatch: () => void;
+  onSelf: () => void;
   onResume?: () => void;
+  busy: boolean;
   toast: string | null;
 }): JSX.Element {
   return (
     <div className={styles.gate}>
-      <div className={styles.gateCard}>
+      <div className={styles.gateCard} style={{ width: "min(760px, 100%)" }}>
         <h1>LeakSpot command centre</h1>
         <SimLabel />
-        <p>You run Jaldhara&apos;s water for one simulated day.</p>
-        <PixelButton onClick={onStart}>Start my run</PixelButton>
+        <ModeChooser onWatch={onWatch} onSelf={onSelf} busy={busy} />
         {onResume && (
           <PixelButton variant="secondary" onClick={onResume}>
             Resume my run

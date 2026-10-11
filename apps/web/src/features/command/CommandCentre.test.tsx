@@ -141,7 +141,9 @@ function getSlotLabel(): string {
   return clock?.textContent ?? "05:45";
 }
 
-describe("Command Centre loop", () => {
+// Long end-to-end component flows: ~0.5 s alone, but >5 s when the whole monorepo suite runs in
+// parallel on a laptop. A 20 s budget; the assertions are unchanged.
+describe("Command Centre loop", { timeout: 20_000 }, () => {
   it("runs new run → ticks → dispatch C3 → 2 ticks → mark repaired → 3 ticks → VERIFIED", async () => {
     renderCommand();
 
@@ -154,7 +156,7 @@ describe("Command Centre loop", () => {
     fireEvent.click(screen.getByRole("button", { name: /Enter/ }));
 
     // Lobby: start a run explicitly, then dismiss the mission briefing.
-    fireEvent.click(await screen.findByRole("button", { name: /Start my run/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Run it yourself/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Start$/ }));
 
     // New run loaded → Step past 07:00 (slot 4) so the crew is on duty and C3 is present. Await each
@@ -221,7 +223,7 @@ describe("Command Centre loop", () => {
       if (cell) fireEvent.change(cell, { target: { value: ch } });
     });
     fireEvent.click(screen.getByRole("button", { name: /Enter/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /Start my run/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Run it yourself/ }));
     fireEvent.click(await screen.findByRole("button", { name: /^Start$/ }));
     const step = await screen.findByRole("button", { name: /^Step$/ });
     expect(createSpy).toHaveBeenCalledTimes(1); // the explicit Start, nothing else

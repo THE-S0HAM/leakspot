@@ -13,6 +13,7 @@ import {
   type JSX,
   type ReactNode,
 } from "react";
+import type { SectorId } from "@leakspot/core/world";
 import { CityView } from "./CityView";
 import type { CityViewProps } from "./CityView";
 import { TankGauge } from "../ui/TankGauge";
@@ -24,6 +25,8 @@ export type CityCanvasProps = CityViewProps & {
   simClock?: { day: number; slotIndex: number; label: string };
   /** the HUD's water-recovered total (litres), for the verified burst label */
   recoveredLitres?: number;
+  /** sector the 3D camera eases to (story beats, sector selection) */
+  focus?: SectorId | null;
   /** bump to re-fit the 3D camera ("Fit city") */
   fitKey?: number;
 };

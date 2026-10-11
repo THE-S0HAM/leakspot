@@ -66,6 +66,8 @@ export const mr: Strings = {
   stageLocated: "जागा समजली",
   stageClassifying: "फोटो तपासत आहे",
   stageMatching: "जवळच्या तक्रारी जुळवत आहे",
+  stageClassified: "फोटो तपासला",
+  stageMatched: "जवळच्या तक्रारी जुळवल्या",
   stageScored: "गुण दिले",
   stageDone: "पूर्ण झाले",
 

@@ -84,7 +84,23 @@ function frameCity(camera: THREE.Camera, controls: Orbit | null, aspect: number)
   controls?.update();
 }
 
-function CameraRig({ rotationStep, fitKey }: { rotationStep: number; fitKey: number }): null {
+function CameraRig({
+  rotationStep,
+  fitKey,
+  focus,
+}: {
+  rotationStep: number;
+  fitKey: number;
+  focus: { x: number; z: number } | null;
+}): null {
+  // Ease the orbit target to `focus` over 700 ms (camera keeps its offset), instant on reduced motion.
+  const ease = useRef<{ from: THREE.Vector3 | null; to: THREE.Vector3; t: number } | null>(null);
+  const focusKey = focus ? `${focus.x},${focus.z}` : "";
+  useEffect(() => {
+    if (!focus) return;
+    ease.current = { from: null, to: new THREE.Vector3(focus.x, 0, focus.z), t: 0 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey]);
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as unknown as Orbit | null;
   const size = useThree((s) => s.size);
@@ -102,6 +118,19 @@ function CameraRig({ rotationStep, fitKey }: { rotationStep: number; fitKey: num
       last.current = rotationStep;
     }
     const cam = state.camera;
+    const e = ease.current;
+    if (e) {
+      e.from ??= c.target.clone();
+      e.t = prefersReducedMotion ? 1 : Math.min(1, e.t + dt / 0.7);
+      const k = 1 - Math.pow(1 - e.t, 3);
+      const nx = e.from.x + (e.to.x - e.from.x) * k;
+      const nz = e.from.z + (e.to.z - e.from.z) * k;
+      cam.position.x += nx - c.target.x;
+      cam.position.z += nz - c.target.z;
+      c.target.set(nx, 0, nz);
+      c.update();
+      if (e.t >= 1) ease.current = null;
+    }
     if (pending.current !== 0) {
       const speed = Math.PI / 2 / 0.3;
       const step = prefersReducedMotion
@@ -610,6 +639,8 @@ export type City3DProps = CityViewProps & {
   simClock?: { day: number; slotIndex: number; label: string };
   /** bump to re-fit the camera ("Fit city") */
   fitKey?: number;
+  /** sector the camera eases to (story beats, sector selection) */
+  focus?: SectorId | null;
   /** the HUD's water-recovered total (litres) */
   recoveredLitres?: number;
   /** called when the browser drops the WebGL context (CityCanvas remounts or falls back to 2D) */
@@ -631,6 +662,10 @@ export function City3D(props: City3DProps): JSX.Element {
     onSelectReport,
   } = props;
   const fadeRef = useRef<THREE.Group>(null);
+  const focusPoint = useMemo(() => {
+    const s = props.focus ? SECTORS.find((x) => x.id === props.focus) : undefined;
+    return s ? { x: s.centroid.x, z: s.centroid.z } : null;
+  }, [props.focus]);
 
   const [hovered, setHovered] = useState<SectorId | null>(null);
   const [selected, setSelected] = useState<SectorId | null>(null);
@@ -708,7 +743,7 @@ export function City3D(props: City3DProps): JSX.Element {
           autoRotate={spectator && !prefersReducedMotion}
           autoRotateSpeed={0.35}
         />
-        <CameraRig rotationStep={rotationStep} fitKey={fitKey} />
+        <CameraRig rotationStep={rotationStep} fitKey={fitKey} focus={focusPoint} />
         <SceneLighting label={label} shadows={shadows} />
 
         <group ref={fadeRef}>

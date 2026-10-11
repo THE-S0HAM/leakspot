@@ -178,7 +178,7 @@ function ReportFlow({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void })
       },
     ];
     if (result.rejected) {
-      lines.push({ text: t("stageClassifying"), state: "done", detail: t("aiNotALeak") });
+      lines.push({ text: t("stageClassified"), state: "done", detail: t("aiNotALeak") });
       return lines;
     }
     const aiDetail =
@@ -187,11 +187,11 @@ function ReportFlow({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void })
         : `${aiLabel(result.label)}, ${Math.round(result.confidence * 100)}%, ${MODEL_NAME}`;
     lines.push({ text: t("stageStored"), state: "done" });
     lines.push({ text: t("stageLocated"), state: "done", detail: pin?.sectorId });
-    lines.push({ text: t("stageClassifying"), state: "done", detail: aiDetail });
+    lines.push({ text: t("stageClassified"), state: "done", detail: aiDetail });
     if (result.incident) {
       // Never show the raw incident id to a citizen; the sector is enough.
       lines.push({
-        text: t("stageMatching"),
+        text: t("stageMatched"),
         state: "done",
         detail: result.incident.sectorId,
       });
