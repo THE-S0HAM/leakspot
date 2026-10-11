@@ -31,6 +31,8 @@ vi.mock("./compress", () => ({
 }));
 
 import { MemoryRouter, Routes, Route } from "react-router";
+import { SECTOR_BY_ID } from "@leakspot/core/world";
+import { postReport } from "./upload";
 import { ReportApp } from "./ReportApp";
 
 function renderAt(path: string): void {
@@ -74,5 +76,23 @@ describe("/report leak flow", () => {
     const ticketBtn = await screen.findByRole("button", { name: /See my ticket/ });
     fireEvent.click(ticketBtn);
     expect(await screen.findByText("TICKET PAGE")).toBeTruthy();
+  });
+
+  it("a ?sector= link sends that sector's centre, never world (0, 0)", async () => {
+    vi.mocked(postReport).mockClear();
+    renderAt("/report?run=K7Q2X&sector=C2");
+    fireEvent.click(await screen.findByRole("button", { name: /I see a leak/ }));
+    const file = new File([new Uint8Array([1, 2, 3])], "leak.jpg", { type: "image/jpeg" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await screen.findByText(/Location data removed/i);
+    fireEvent.click(screen.getByRole("button", { name: /Water flowing/ }));
+    const send = await screen.findByRole("button", { name: /^Send$/ });
+    await waitFor(() => expect((send as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(send);
+    await waitFor(() => expect(vi.mocked(postReport)).toHaveBeenCalled());
+    const body = vi.mocked(postReport).mock.calls[0]?.[1] as { x: number; z: number };
+    expect(body.x).toBe(SECTOR_BY_ID.C2.centroid.x);
+    expect(body.z).toBe(SECTOR_BY_ID.C2.centroid.z);
   });
 });

@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import type { SectorId } from "@leakspot/core/world";
+import { SECTOR_BY_ID, type SectorId } from "@leakspot/core/world";
 import { classifyReport, getPublicState } from "../../api/client";
 import type { ClassifyResponse } from "../../state/view-types";
 import { MiniMap, type MiniMapPin } from "../../world/MiniMap";
@@ -34,6 +34,17 @@ const LABEL_KEY: Record<string, StringKey> = {
   self_reported: "aiSelfReported",
 };
 
+function sectorParam(raw: string | null): SectorId | undefined {
+  return raw && raw in SECTOR_BY_ID ? (raw as SectorId) : undefined;
+}
+
+/** The pin for a sector link: the sector's centre (never world 0,0, which is the A1 corner). */
+function pinForSector(id: SectorId | undefined): MiniMapPin | null {
+  if (!id) return null;
+  const c = SECTOR_BY_ID[id].centroid;
+  return { x: c.x, z: c.z, sectorId: id };
+}
+
 export function ReportApp(): JSX.Element {
   const [lang, setLang] = useState<Lang>(() => loadLang() ?? "en");
 
@@ -56,7 +67,9 @@ function ReportFlow({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void })
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const runFromLink = params.get("run");
-  const sectorFromLink = (params.get("sector") as SectorId | null) ?? undefined;
+  // ?sector=C2 (from a sector link) pre-places the pin at that sector's centre; unknown ids are ignored.
+  const sectorFromLink = sectorParam(params.get("sector"));
+  const linkPin = useMemo(() => pinForSector(sectorFromLink), [sectorFromLink]);
 
   const [runId, setRunId] = useState<string | null>(runFromLink);
   const [runError, setRunError] = useState<string | null>(null);
@@ -65,9 +78,7 @@ function ReportFlow({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void })
   const [selfChoice, setSelfChoice] = useState<SelfChoice | null>(null);
   const [photo, setPhoto] = useState<CompressResult | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [pin, setPin] = useState<MiniMapPin | null>(
-    sectorFromLink ? { x: 0, z: 0, sectorId: sectorFromLink } : null,
-  );
+  const [pin, setPin] = useState<MiniMapPin | null>(linkPin);
   const [offline, setOffline] = useState(!navigator.onLine);
 
   // Sending state
@@ -101,14 +112,14 @@ function ReportFlow({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void })
     setSelfChoice(null);
     setPhoto(null);
     setPhotoError(null);
-    setPin(sectorFromLink ? { x: 0, z: 0, sectorId: sectorFromLink } : null);
+    setPin(linkPin);
     setUploadFrac(0);
     setUploadDone(false);
     setServerStages(null);
     setSendError(null);
     setClassified(null);
     setNewRid(null);
-  }, [sectorFromLink]);
+  }, [linkPin]);
 
   const canSend =
     pin !== null &&
