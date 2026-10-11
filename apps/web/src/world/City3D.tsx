@@ -608,6 +608,8 @@ export type City3DProps = CityViewProps & {
   simClock?: { day: number; slotIndex: number; label: string };
   /** bump to re-fit the camera ("Fit city") */
   fitKey?: number;
+  /** the HUD's water-recovered total (litres) */
+  recoveredLitres?: number;
   /** called when the browser drops the WebGL context (CityCanvas remounts or falls back to 2D) */
   onContextLost?: () => void;
 };
@@ -727,7 +729,7 @@ export function City3D(props: City3DProps): JSX.Element {
         {xray && <Pipes network={NETWORK} xray />}
         {xray && <FlowCubes network={NETWORK} supplyOn={supplyOn} sectorStatus={sectorStatus} />}
         <SuspectEffects sectorStatus={sectorStatus} />
-        <LeakEffects incidents={incidents} />
+        <LeakEffects incidents={incidents} recoveredTotal={props.recoveredLitres} />
         <CrewTruck crew={crew} />
         {!spectator && <ReportPins reports={reports} onSelectReport={onSelectReport} />}
         {!spectator && (

@@ -22,6 +22,8 @@ const City3D = lazy(() => import("./City3D").then((m) => ({ default: m.City3D })
 
 export type CityCanvasProps = CityViewProps & {
   simClock?: { day: number; slotIndex: number; label: string };
+  /** the HUD's water-recovered total (litres), for the verified burst label */
+  recoveredLitres?: number;
   /** bump to re-fit the 3D camera ("Fit city") */
   fitKey?: number;
 };

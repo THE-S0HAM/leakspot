@@ -332,7 +332,35 @@ function SuspectRing({
 
 const ACTIVE = new Set(["open", "dispatched", "onsite", "reopened"]);
 
-export function LeakEffects({ incidents }: { incidents: readonly IncidentView[] }): JSX.Element {
+export function LeakEffects({
+  incidents,
+  recoveredTotal,
+}: {
+  incidents: readonly IncidentView[];
+  /** the HUD's water-recovered total; its increase when an incident turns verified is the burst label */
+  recoveredTotal?: number;
+}): JSX.Element {
+  // Bursts only for incidents that turn verified while watching (not ones already verified on load).
+  const seen = useRef<Set<string> | null>(null);
+  const lastTotal = useRef(recoveredTotal ?? 0);
+  const [bursts, setBursts] = useState<Record<string, number | undefined>>({});
+  useEffect(() => {
+    const verified = incidents.filter((i) => i.status === "verified").map((i) => i.id);
+    const total = recoveredTotal ?? 0;
+    if (seen.current === null) {
+      seen.current = new Set(verified);
+      lastTotal.current = total;
+      return;
+    }
+    const fresh = verified.filter((id) => !seen.current?.has(id));
+    for (const id of fresh) seen.current.add(id);
+    const delta = total - lastTotal.current;
+    lastTotal.current = total;
+    if (fresh.length === 0) return;
+    // one verification per tick in practice; if several land together, split the increase
+    const each = delta > 0 ? delta / fresh.length : undefined;
+    setBursts((b) => ({ ...b, ...Object.fromEntries(fresh.map((id) => [id, each])) }));
+  }, [incidents, recoveredTotal]);
   return (
     <group>
       {incidents.map((inc) => {
@@ -343,8 +371,12 @@ export function LeakEffects({ incidents }: { incidents: readonly IncidentView[] 
             {visible && <Puddle x={inc.pin.x} z={inc.pin.z} draining={!active} />}
             {visible && active && !reducedMotion && <Fountain x={inc.pin.x} z={inc.pin.z} />}
             {inc.verdict === "CONFIRMED" && active && <Bang x={inc.pin.x} z={inc.pin.z} />}
-            {inc.status === "verified" && (
-              <VerifiedBurst x={inc.pin.x} z={inc.pin.z} litres={inc.recoveredLitresPerDay} />
+            {inc.status === "verified" && inc.id in bursts && (
+              <VerifiedBurst
+                x={inc.pin.x}
+                z={inc.pin.z}
+                litres={bursts[inc.id] ?? inc.recoveredLitresPerDay}
+              />
             )}
           </group>
         );
@@ -485,7 +517,7 @@ function VerifiedBurstFx({ x, z, litres }: { x: number; z: number; litres?: numb
             className={styles.label}
             style={{ borderColor: HEX.neem, color: HEX.neem }}
           >
-            {litres ? `+${lakh(litres)} L/day` : "Verified by meters"}
+            {litres ? `+${lakh(litres)}/day` : "Verified by meters"}
           </div>
         </Html>
       }
@@ -595,10 +627,14 @@ export function reportChip(r: RecentReport): string {
 
 type PinCluster = { x: number; z: number; reports: RecentReport[] };
 
-/** Greedy clustering: reports within ~4 units share one marker. */
+/**
+ * Greedy clustering: SIMULATED reports within ~4 units share one marker. Phone reports are never
+ * clustered: each one gets its own pin, listed last (drawn on top).
+ */
 export function clusterReports(reports: readonly RecentReport[], radius = 4): PinCluster[] {
   const out: PinCluster[] = [];
   for (const r of reports) {
+    if (r.source === "phone") continue;
     const hit = out.find((c) => Math.hypot(c.x - r.x, c.z - r.z) < radius);
     if (hit) {
       hit.reports.push(r);
@@ -606,6 +642,9 @@ export function clusterReports(reports: readonly RecentReport[], radius = 4): Pi
       hit.x += (r.x - hit.x) / n;
       hit.z += (r.z - hit.z) / n;
     } else out.push({ x: r.x, z: r.z, reports: [r] });
+  }
+  for (const r of reports) {
+    if (r.source === "phone") out.push({ x: r.x, z: r.z, reports: [r] });
   }
   return out;
 }
@@ -646,7 +685,7 @@ export function ReportPins({
         const phone = c.reports.some((r) => r.source === "phone");
         const many = c.reports.length > 1;
         const color = phone ? HEX.neel : "#8a96a6";
-        const scale = phone ? 1 : 0.7;
+        const scale = phone ? 2 : 0.7;
         const chip = many ? `${c.reports.length} reports` : reportChip(first);
         const showChip = many || hover === key;
         const pick = c.reports.find((r) => r.source === "phone") ?? first;
@@ -694,7 +733,12 @@ export function ReportPins({
               )}
             </group>
             {showChip && (
-              <Html position={[0, 4, 0]} center zIndexRange={[15, 5]} pointerEvents="none">
+              <Html
+                position={[0, 4, 0]}
+                center
+                zIndexRange={phone ? [30, 20] : [15, 5]}
+                pointerEvents="none"
+              >
                 <span
                   className={styles.label}
                   style={{ borderColor: color, color: phone ? undefined : "#c3ccd8" }}
@@ -712,9 +756,13 @@ export function ReportPins({
 }
 
 function Photographer(): JSX.Element {
+  // Flash: steady for the first second, then two quick pops; the whole figure lives 3 s (ReportPins).
   const flash = useRef<THREE.Mesh>(null);
+  const t0 = useRef<number | null>(null);
   useFrame(({ clock }) => {
-    if (flash.current) flash.current.visible = Math.floor(clock.elapsedTime * 2) % 3 === 0;
+    t0.current ??= clock.elapsedTime;
+    const t = clock.elapsedTime - t0.current;
+    if (flash.current) flash.current.visible = t < 1 || Math.floor(t * 4) % 2 === 0;
   });
   return (
     <group position={[1.4, 0, 1.2]}>
@@ -727,7 +775,7 @@ function Photographer(): JSX.Element {
         <meshStandardMaterial color="#8a5a3c" />
       </mesh>
       <mesh ref={flash} position={[-0.4, 1.1, -0.3]}>
-        <sphereGeometry args={[0.45, 10, 8]} />
+        <sphereGeometry args={[1, 14, 10]} />
         <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </mesh>
     </group>

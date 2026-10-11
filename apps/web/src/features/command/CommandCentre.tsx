@@ -539,6 +539,7 @@ export function CommandCentre(): JSX.Element {
           xray={xray}
           viewBox={viewBox}
           simClock={state.simClock}
+          recoveredLitres={state.waterRecoveredLitres}
           fitKey={fitKey}
           onSelectSector={selectSector}
           onHoverSector={(id) => setHover(touchRef.current ? null : id)}

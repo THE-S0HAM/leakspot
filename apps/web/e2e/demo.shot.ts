@@ -95,7 +95,7 @@ test("demo moments", async ({ page }) => {
   expect(created.ok(), await created.text()).toBeTruthy();
   const { reportId } = (await created.json()) as { reportId: string };
   await page.request.post(`/api/runs/${runId}/reports/${reportId}/classify`);
-  await page.waitForTimeout(7000); // live polling picks it up
+  await step(page); // the tick response carries the new report; the flash lasts 3 s
   await shot(page, "08-phone-report");
 
   await page.getByRole("button", { name: /^X-ray$/ }).click();
